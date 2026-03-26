@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS api_contracts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  feature_id INTEGER NOT NULL REFERENCES features(id) ON DELETE CASCADE,
+  file_name TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  content TEXT,
+  contract_type TEXT DEFAULT 'SWAGGER',
+  uploaded_by INTEGER REFERENCES users(id),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

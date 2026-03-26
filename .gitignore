@@ -1,0 +1,23 @@
+# Dependencies
+tamt/backend/node_modules/
+tamt/frontend/node_modules/
+
+# Database
+tamt/backend/tamt.db
+tamt/backend/tamt.db-shm
+tamt/backend/tamt.db-wal
+
+# RF artifacts
+tamt/backend/rf-results/
+tamt/backend/uploads/
+
+# Env files
+tamt/backend/.env
+tamt/frontend/.env
+
+# Build
+tamt/frontend/dist/
+
+# OS
+.DS_Store
+*.swp

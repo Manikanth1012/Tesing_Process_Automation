@@ -1,0 +1,62 @@
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const multer = require('multer');
+
+const { authenticate } = require('./middleware/auth');
+const { errorHandler, notFound } = require('./middleware/errorHandler');
+
+// Routes
+const featuresRouter = require('./routes/features');
+const prerequisitesRouter = require('./routes/prerequisites');
+const testPlansRouter = require('./routes/testPlans');
+const testCasesRouter = require('./routes/testCases');
+const testRunsRouter = require('./routes/testRuns');
+const testExecutionsRouter = require('./routes/testExecutions');
+const defectsRouter = require('./routes/defects');
+const environmentsRouter = require('./routes/environments');
+const reportsRouter = require('./routes/reports');
+const agentsRouter = require('./routes/agents');
+const rfRouter = require('./routes/rf');
+const authRouter = require('./routes/auth');
+
+const app = express();
+
+// CORS
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Static file serving for uploads
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Health check (no auth)
+app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Auth (no auth middleware on auth routes)
+app.use('/api/v1/auth', authRouter);
+
+// Apply auth middleware to all other API routes
+app.use('/api/v1', authenticate);
+
+app.use('/api/v1/features', featuresRouter);
+app.use('/api/v1/prerequisites', prerequisitesRouter);
+app.use('/api/v1/test-plans', testPlansRouter);
+app.use('/api/v1/test-cases', testCasesRouter);
+app.use('/api/v1/test-runs', testRunsRouter);
+app.use('/api/v1/test-executions', testExecutionsRouter);
+app.use('/api/v1/defects', defectsRouter);
+app.use('/api/v1/environments', environmentsRouter);
+app.use('/api/v1/reports', reportsRouter);
+app.use('/api/v1/agents', agentsRouter);
+app.use('/api/v1/rf', rfRouter);
+
+app.use(notFound);
+app.use(errorHandler);
+
+module.exports = app;

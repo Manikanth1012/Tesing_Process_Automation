@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS defects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  description TEXT,
+  severity TEXT DEFAULT 'Minor',
+  priority TEXT DEFAULT 'P3',
+  status TEXT DEFAULT 'Open',
+  test_execution_id INTEGER REFERENCES test_executions(id),
+  test_case_id INTEGER REFERENCES test_cases(id),
+  feature_id INTEGER REFERENCES features(id),
+  steps_to_reproduce TEXT DEFAULT '[]',
+  expected_behavior TEXT,
+  actual_behavior TEXT,
+  suggested_assignee_team TEXT,
+  possible_duplicate_ids TEXT DEFAULT '[]',
+  regression_scope TEXT DEFAULT '[]',
+  created_by INTEGER REFERENCES users(id),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
