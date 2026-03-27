@@ -1,45 +1,46 @@
 import React from 'react';
 
-const STATUS_STYLES = {
-  // Feature/TestCase status
-  Draft: 'bg-gray-100 text-gray-700',
-  Active: 'bg-blue-100 text-blue-700',
-  Approved: 'bg-green-100 text-green-700',
-  Deprecated: 'bg-red-100 text-red-700',
-  Review: 'bg-yellow-100 text-yellow-700',
-  // Test execution
-  Pass: 'bg-green-100 text-green-700',
-  Fail: 'bg-red-100 text-red-700',
-  Skipped: 'bg-gray-100 text-gray-600',
-  Pending: 'bg-blue-50 text-blue-600',
-  Blocked: 'bg-orange-100 text-orange-700',
-  // Run status
-  Running: 'bg-blue-100 text-blue-700',
-  Completed: 'bg-green-100 text-green-700',
-  Failed: 'bg-red-100 text-red-700',
-  Cancelled: 'bg-gray-100 text-gray-600',
+// Maps status/priority values to badge CSS class names from index.css
+const STATUS_CLASS = {
+  // Feature / Test Case status
+  Draft:        'badge-gray',
+  Active:       'badge-cyan',
+  Approved:     'badge-green',
+  Deprecated:   'badge-gray',
+  Review:       'badge-amber',
+  'On Hold':    'badge-amber',
+  Archived:     'badge-gray',
+  // Test execution results
+  Pass:         'badge-green',
+  Fail:         'badge-red',
+  Skipped:      'badge-gray',
+  Pending:      'badge-cyan',
+  Blocked:      'badge-amber',
+  // Test run status
+  Running:      'badge-cyan',
+  Completed:    'badge-green',
+  Failed:       'badge-red',
+  Cancelled:    'badge-gray',
   // Priority
-  P1: 'bg-red-100 text-red-700',
-  P2: 'bg-orange-100 text-orange-700',
-  P3: 'bg-blue-100 text-blue-700',
-  // Severity
-  Critical: 'bg-red-100 text-red-800',
-  Major: 'bg-orange-100 text-orange-800',
-  Minor: 'bg-yellow-100 text-yellow-800',
-  Trivial: 'bg-gray-100 text-gray-600',
-  // Defect
-  Open: 'bg-red-100 text-red-700',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  Resolved: 'bg-green-100 text-green-700',
-  Closed: 'bg-gray-100 text-gray-600',
+  P1:           'badge-red',
+  P2:           'badge-amber',
+  P3:           'badge-cyan',
+  // Defect severity
+  Critical:     'badge-red',
+  Major:        'badge-amber',
+  Minor:        'badge-cyan',
+  Trivial:      'badge-gray',
+  // Defect status
+  Open:         'badge-red',
+  'In Progress':'badge-amber',
+  Resolved:     'badge-green',
+  Closed:       'badge-gray',
+  // Scripts
+  Validated:    'badge-green',
+  Scripted:     'badge-purple',
 };
 
-export default function StatusBadge({ status, size = 'sm' }) {
-  const style = STATUS_STYLES[status] || 'bg-gray-100 text-gray-600';
-  const sz = size === 'sm' ? 'text-xs px-2 py-0.5' : 'text-sm px-3 py-1';
-  return (
-    <span className={`inline-flex items-center rounded-full font-medium ${style} ${sz}`}>
-      {status}
-    </span>
-  );
+export default function StatusBadge({ status }) {
+  const cls = STATUS_CLASS[status] || 'badge-gray';
+  return <span className={`badge ${cls}`}>{status}</span>;
 }

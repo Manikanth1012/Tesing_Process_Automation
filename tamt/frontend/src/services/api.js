@@ -138,6 +138,31 @@ export const refTemplatesAPI = {
   getContent: (id) => api.get(`/ref-templates/${id}/content`),
 };
 
+// ─── Projects ──────────────────────────────────────────────────────────────────
+export const projectsAPI = {
+  list: () => api.get('/projects'),
+  get: (id) => api.get(`/projects/${id}`),
+  create: (data) => api.post('/projects', data),
+  update: (id, data) => api.put(`/projects/${id}`, data),
+  delete: (id) => api.delete(`/projects/${id}`),
+  addMember: (id, data) => api.post(`/projects/${id}/members`, data),
+  removeMember: (id, userId) => api.delete(`/projects/${id}/members/${userId}`),
+};
+
+// ─── Users ─────────────────────────────────────────────────────────────────────
+export const usersAPI = {
+  list: () => api.get('/users'),
+  get: (id) => api.get(`/users/${id}`),
+  create: (data) => api.post('/users', data),
+  update: (id, data) => api.put(`/users/${id}`, data),
+  deactivate: (id) => api.delete(`/users/${id}`),
+};
+
+// ─── AI Assistant ──────────────────────────────────────────────────────────────
+export const assistantAPI = {
+  chat: (message, history = []) => api.post('/assistant/chat', { message, history }),
+};
+
 // ─── XLSX Export helpers ────────────────────────────────────────────────────────
 // These trigger a file download by navigating directly to the endpoint.
 export function downloadXlsx(path) {

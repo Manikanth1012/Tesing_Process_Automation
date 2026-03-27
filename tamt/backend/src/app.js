@@ -20,6 +20,9 @@ const agentsRouter = require('./routes/agents');
 const rfRouter = require('./routes/rf');
 const authRouter = require('./routes/auth');
 const refTemplatesRouter = require('./routes/referenceTemplates');
+const projectsRouter = require('./routes/projects');
+const usersRouter = require('./routes/users');
+const assistantRouter = require('./routes/assistant');
 
 const app = express();
 
@@ -57,6 +60,9 @@ app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/agents', agentsRouter);
 app.use('/api/v1/rf', rfRouter);
 app.use('/api/v1/ref-templates', refTemplatesRouter);
+app.use('/api/v1/projects', projectsRouter);
+app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/assistant', assistantRouter);
 
 app.use(notFound);
 app.use(errorHandler);

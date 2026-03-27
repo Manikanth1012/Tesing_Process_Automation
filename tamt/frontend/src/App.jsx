@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/common/Layout.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Projects from './pages/Projects.jsx';
+import ProjectDetail from './pages/ProjectDetail.jsx';
 import Features from './pages/Features.jsx';
 import FeatureDetail from './pages/FeatureDetail.jsx';
 import TestPlans from './pages/TestPlans.jsx';
@@ -20,6 +22,8 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/features" element={<Features />} />
           <Route path="/features/:id" element={<FeatureDetail />} />
           <Route path="/test-plans" element={<TestPlans />} />

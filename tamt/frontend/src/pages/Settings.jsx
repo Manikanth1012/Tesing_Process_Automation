@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Trash2, Upload, FileText, Plus } from 'lucide-react';
-import { environmentsAPI, agentsAPI, refTemplatesAPI } from '../services/api.js';
+import { Trash2, Upload, FileText, Plus, UserPlus, Edit2, X, ShieldCheck } from 'lucide-react';
+import { environmentsAPI, agentsAPI, refTemplatesAPI, usersAPI } from '../services/api.js';
 import Modal from '../components/common/Modal.jsx';
 
 const TEMPLATE_TYPES = ['FUNCTIONAL_TC', 'GUI_TC', 'API_SPEC', 'SWAGGER'];
@@ -10,40 +10,65 @@ const TEMPLATE_TYPE_LABELS = {
   API_SPEC: 'API Specification',
   SWAGGER: 'Swagger / OpenAPI Contract',
 };
+const TABS = ['Environments', 'Users & Roles', 'Global Templates', 'Agent Logs'];
+const USER_ROLES = ['QA_ENGINEER', 'QA_LEAD', 'DEVELOPER', 'MANAGER', 'ADMIN'];
+const SYSTEM_ROLES = ['User', 'Admin', 'SuperAdmin'];
 
-const TABS = ['Environments', 'Global Templates', 'Agent Logs'];
+function Tab({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '10px 16px', fontSize: 13, fontWeight: 500,
+        borderBottom: active ? '2px solid var(--cyan)' : '2px solid transparent',
+        color: active ? 'var(--cyan)' : 'var(--t2)',
+        background: 'none', border: 'none',
+        borderBottom: active ? '2px solid var(--cyan)' : '2px solid transparent',
+        cursor: 'pointer', transition: 'color 0.2s',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
 
 export default function Settings() {
   const [tab, setTab] = useState('Environments');
   const [environments, setEnvironments] = useState([]);
   const [agentLogs, setAgentLogs] = useState([]);
   const [globalTemplates, setGlobalTemplates] = useState([]);
+  const [users, setUsers] = useState([]);
+
+  // Env modal
   const [showAddEnv, setShowAddEnv] = useState(false);
-  const [showAddTemplate, setShowAddTemplate] = useState(false);
   const [envForm, setEnvForm] = useState({ name: '', base_url: '', env_type: 'SIT' });
+
+  // User modals
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [showEditUser, setShowEditUser] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'QA_ENGINEER', system_role: 'User' });
+
+  // Template modal
+  const [showAddTemplate, setShowAddTemplate] = useState(false);
   const [templateForm, setTemplateForm] = useState({ name: '', template_type: 'FUNCTIONAL_TC', description: '', content: '' });
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadMode, setUploadMode] = useState('file');
+
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (tab === 'Environments') {
-      environmentsAPI.list().then(r => setEnvironments(r.data));
-    } else if (tab === 'Agent Logs') {
-      agentsAPI.getHistory({ limit: 50 }).then(r => setAgentLogs(r.data));
-    } else if (tab === 'Global Templates') {
-      loadGlobalTemplates();
-    }
+    if (tab === 'Environments') environmentsAPI.list().then(r => setEnvironments(r.data));
+    else if (tab === 'Agent Logs') agentsAPI.getHistory({ limit: 50 }).then(r => setAgentLogs(r.data));
+    else if (tab === 'Global Templates') loadGlobalTemplates();
+    else if (tab === 'Users & Roles') usersAPI.list().then(r => setUsers(r.data));
   }, [tab]);
 
-  const loadGlobalTemplates = () => {
-    refTemplatesAPI.list({ is_global: 1 }).then(r => setGlobalTemplates(r.data));
-  };
+  const loadGlobalTemplates = () => refTemplatesAPI.list({ is_global: 1 }).then(r => setGlobalTemplates(r.data));
 
   const handleAddEnv = async (e) => {
-    e.preventDefault();
-    setSaving(true);
+    e.preventDefault(); setSaving(true);
     try {
       await environmentsAPI.create(envForm);
       setShowAddEnv(false);
@@ -52,9 +77,45 @@ export default function Settings() {
     } finally { setSaving(false); }
   };
 
+  const handleAddUser = async (e) => {
+    e.preventDefault(); setSaving(true);
+    try {
+      await usersAPI.create(userForm);
+      setShowAddUser(false);
+      setUserForm({ name: '', email: '', password: '', role: 'QA_ENGINEER', system_role: 'User' });
+      usersAPI.list().then(r => setUsers(r.data));
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    } finally { setSaving(false); }
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault(); setSaving(true);
+    try {
+      const payload = { ...userForm };
+      if (!payload.password) delete payload.password;
+      await usersAPI.update(selectedUser.id, payload);
+      setShowEditUser(false);
+      usersAPI.list().then(r => setUsers(r.data));
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    } finally { setSaving(false); }
+  };
+
+  const openEditUser = (user) => {
+    setSelectedUser(user);
+    setUserForm({ name: user.name, email: user.email, password: '', role: user.role, system_role: user.system_role || 'User' });
+    setShowEditUser(true);
+  };
+
+  const handleDeactivateUser = async (user) => {
+    if (!confirm(`Deactivate ${user.name}?`)) return;
+    await usersAPI.deactivate(user.id);
+    usersAPI.list().then(r => setUsers(r.data));
+  };
+
   const handleAddTemplate = async (e) => {
-    e.preventDefault();
-    setSaving(true);
+    e.preventDefault(); setSaving(true);
     try {
       if (uploadMode === 'file' && uploadFile) {
         const fd = new FormData();
@@ -65,13 +126,7 @@ export default function Settings() {
         fd.append('is_global', '1');
         await refTemplatesAPI.upload(fd);
       } else {
-        await refTemplatesAPI.uploadInline({
-          name: templateForm.name,
-          template_type: templateForm.template_type,
-          description: templateForm.description,
-          content: templateForm.content,
-          is_global: true,
-        });
+        await refTemplatesAPI.uploadInline({ ...templateForm, is_global: true });
       }
       setShowAddTemplate(false);
       setTemplateForm({ name: '', template_type: 'FUNCTIONAL_TC', description: '', content: '' });
@@ -95,102 +150,153 @@ export default function Settings() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+      <h1 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 800, fontSize: 24, color: 'var(--t1)' }}>Settings</h1>
 
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-0">
-          {TABS.map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-900'}`}>
-              {t}
-            </button>
-          ))}
-        </nav>
+      <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', gap: 0 }}>
+        {TABS.map(t => <Tab key={t} label={t} active={tab === t} onClick={() => setTab(t)} />)}
       </div>
 
+      {/* ── Environments ── */}
       {tab === 'Environments' && (
         <div className="space-y-3">
           <div className="flex justify-end">
-            <button onClick={() => setShowAddEnv(true)} className="btn-primary text-sm">+ Add Environment</button>
+            <button onClick={() => setShowAddEnv(true)} className="btn-primary text-sm"><Plus className="w-4 h-4" /> Add Environment</button>
           </div>
-          <div className="card divide-y divide-gray-100">
-            {environments.length === 0 && <div className="p-6 text-center text-gray-400 text-sm">No environments configured.</div>}
+          <div className="card divide-y" style={{ '--divide-color': 'var(--border)' }}>
+            {environments.length === 0 && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--t3)' }}>No environments configured.</div>}
             {environments.map(e => (
-              <div key={e.id} className="flex items-center px-5 py-3 text-sm">
-                <div className="flex-1"><div className="font-medium text-gray-900">{e.name}</div><div className="text-gray-500 text-xs">{e.base_url}</div></div>
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{e.env_type}</span>
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: 'var(--t1)', fontWeight: 500 }}>{e.name}</div>
+                  <div style={{ color: 'var(--t3)', fontSize: 12, fontFamily: '"DM Mono",monospace' }}>{e.base_url}</div>
+                </div>
+                <span className="badge badge-cyan">{e.env_type}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* ── Users & Roles ── */}
+      {tab === 'Users & Roles' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p style={{ color: 'var(--t3)', fontSize: 13 }}>Manage platform users and their system-level roles. Project-level roles are managed inside each project.</p>
+            <button onClick={() => setShowAddUser(true)} className="btn-primary text-sm"><UserPlus className="w-4 h-4" /> Add User</button>
+          </div>
+          <div className="card">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  {['Name', 'Email', 'Job Role', 'System Role', 'Status', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontFamily: '"DM Mono",monospace', fontSize: 10, color: 'var(--t3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {users.map(u => (
+                  <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg3)', border: '1px solid var(--border-hi)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--cyan)', flexShrink: 0 }}>
+                          {u.name?.charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ color: 'var(--t1)', fontWeight: 500 }}>{u.name}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', color: 'var(--t2)', fontSize: 13 }}>{u.email}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{ fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--t3)' }}>{u.role}</span>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <SystemRoleBadge role={u.system_role || 'User'} />
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span className={u.is_active ? 'badge badge-green' : 'badge badge-gray'}>
+                        {u.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => openEditUser(u)} style={{ color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Edit">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeactivateUser(u)} style={{ color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Deactivate">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {users.length === 0 && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--t3)' }}>No users found.</div>}
+          </div>
+        </div>
+      )}
+
+      {/* ── Global Templates ── */}
       {tab === 'Global Templates' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Global templates are available to all features as a base reference for agents.</p>
-            <button onClick={() => setShowAddTemplate(true)} className="btn-primary text-sm">
-              <Plus className="w-4 h-4" /> Add Global Template
-            </button>
+            <p style={{ color: 'var(--t3)', fontSize: 13 }}>Global templates are available as AI agent context across all features.</p>
+            <button onClick={() => setShowAddTemplate(true)} className="btn-primary text-sm"><Plus className="w-4 h-4" /> Add Template</button>
           </div>
-
           {TEMPLATE_TYPES.map(type => (
             <div key={type} className="card">
-              <div className="px-5 py-3 bg-gray-50 rounded-t-xl border-b border-gray-100">
-                <h3 className="font-semibold text-gray-700 text-sm">{TEMPLATE_TYPE_LABELS[type]}</h3>
+              <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--border)', background: 'var(--bg3)', borderRadius: '12px 12px 0 0' }}>
+                <h3 style={{ fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--cyan)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  {TEMPLATE_TYPE_LABELS[type]}
+                </h3>
               </div>
               {grouped[type].length === 0 ? (
-                <div className="p-4 text-center text-gray-400 text-sm">No global templates of this type.</div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {grouped[type].map(tmpl => (
-                    <div key={tmpl.id} className="flex items-center px-5 py-3 text-sm">
-                      <FileText className="w-4 h-4 text-gray-400 mr-3 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">{tmpl.name}</div>
-                        {tmpl.description && <div className="text-xs text-gray-500 truncate">{tmpl.description}</div>}
-                        <div className="text-xs text-gray-400">{tmpl.file_name}</div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <a
-                          href={`/api/v1/ref-templates/${tmpl.id}/download`}
-                          className="text-xs text-blue-600 hover:underline"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Download
-                        </a>
-                        <button onClick={() => handleDeleteTemplate(tmpl.id)} className="text-gray-400 hover:text-red-500">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ padding: '24px 18px', color: 'var(--t3)', textAlign: 'center', fontSize: 13 }}>No global templates of this type.</div>
+              ) : grouped[type].map(tmpl => (
+                <div key={tmpl.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 18px', borderBottom: '1px solid var(--border)' }}>
+                  <FileText className="w-4 h-4 flex-shrink-0 mr-3" style={{ color: 'var(--t3)' }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: 'var(--t1)', fontWeight: 500, fontSize: 13 }}>{tmpl.name}</div>
+                    {tmpl.description && <div style={{ color: 'var(--t3)', fontSize: 11 }}>{tmpl.description}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, marginLeft: 12, alignItems: 'center' }}>
+                    <a href={`/api/v1/ref-templates/${tmpl.id}/download`} target="_blank" rel="noreferrer"
+                      style={{ fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--cyan)', textDecoration: 'none' }}>
+                      Download
+                    </a>
+                    <button onClick={() => handleDeleteTemplate(tmpl.id)} style={{ color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
           ))}
         </div>
       )}
 
+      {/* ── Agent Logs ── */}
       {tab === 'Agent Logs' && (
-        <div className="card divide-y divide-gray-100">
-          {agentLogs.length === 0 && <div className="p-6 text-center text-gray-400 text-sm">No agent runs recorded.</div>}
+        <div className="card">
+          {agentLogs.length === 0 && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--t3)' }}>No agent runs recorded.</div>}
           {agentLogs.map(log => (
-            <div key={log.id} className="px-5 py-3 text-sm">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-medium text-gray-900">{log.agent_type}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${log.status === 'Completed' ? 'bg-green-100 text-green-700' : log.status === 'Failed' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{log.status}</span>
+            <div key={log.id} style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontWeight: 500, color: 'var(--t1)', fontSize: 13 }}>{log.agent_type}</span>
+                <span className={`badge ${log.status === 'Completed' ? 'badge-green' : log.status === 'Failed' ? 'badge-red' : 'badge-amber'}`}>
+                  {log.status}
+                </span>
               </div>
-              <div className="text-gray-500 text-xs">{log.trigger_entity_type} #{log.trigger_entity_id} · {log.tokens_used} tokens · {log.duration_ms}ms</div>
-              {log.error_message && <div className="text-red-500 text-xs mt-1">{log.error_message}</div>}
-              <div className="text-gray-400 text-xs">{log.created_at}</div>
+              <div style={{ fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--t3)' }}>
+                {log.trigger_entity_type} #{log.trigger_entity_id} · {log.tokens_used || 0} tokens · {log.duration_ms || 0}ms
+              </div>
+              {log.error_message && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 4 }}>{log.error_message}</div>}
+              <div style={{ fontFamily: '"DM Mono",monospace', fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>{log.created_at}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Add Environment Modal */}
+      {/* ── Add Environment Modal ── */}
       <Modal open={showAddEnv} onClose={() => setShowAddEnv(false)} title="Add Environment">
         <form onSubmit={handleAddEnv} className="space-y-4">
           <div><label className="label">Name *</label><input className="input" required value={envForm.name} onChange={e => setEnvForm(p => ({ ...p, name: e.target.value }))} /></div>
@@ -198,68 +304,120 @@ export default function Settings() {
           <div>
             <label className="label">Type</label>
             <select className="input" value={envForm.env_type} onChange={e => setEnvForm(p => ({ ...p, env_type: e.target.value }))}>
-              <option>SIT</option><option>UAT</option><option>PROD</option><option>DEV</option>
+              {['SIT', 'UAT', 'PROD', 'DEV'].map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
-          <div className="flex justify-end gap-3"><button type="button" onClick={() => setShowAddEnv(false)} className="btn-secondary">Cancel</button><button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Add'}</button></div>
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setShowAddEnv(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Adding…' : 'Add'}</button>
+          </div>
         </form>
       </Modal>
 
-      {/* Add Global Template Modal */}
+      {/* ── Add User Modal ── */}
+      <Modal open={showAddUser} onClose={() => setShowAddUser(false)} title="Add User">
+        <form onSubmit={handleAddUser} className="space-y-4">
+          <div><label className="label">Full Name *</label><input className="input" required value={userForm.name} onChange={e => setUserForm(p => ({ ...p, name: e.target.value }))} /></div>
+          <div><label className="label">Email *</label><input className="input" required type="email" value={userForm.email} onChange={e => setUserForm(p => ({ ...p, email: e.target.value }))} /></div>
+          <div><label className="label">Password *</label><input className="input" required type="password" value={userForm.password} onChange={e => setUserForm(p => ({ ...p, password: e.target.value }))} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label className="label">Job Role</label>
+              <select className="input" value={userForm.role} onChange={e => setUserForm(p => ({ ...p, role: e.target.value }))}>
+                {USER_ROLES.map(r => <option key={r}>{r}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">System Role</label>
+              <select className="input" value={userForm.system_role} onChange={e => setUserForm(p => ({ ...p, system_role: e.target.value }))}>
+                {SYSTEM_ROLES.map(r => <option key={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setShowAddUser(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Creating…' : 'Create User'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Edit User Modal ── */}
+      <Modal open={showEditUser} onClose={() => setShowEditUser(false)} title={`Edit: ${selectedUser?.name || ''}`}>
+        <form onSubmit={handleEditUser} className="space-y-4">
+          <div><label className="label">Full Name *</label><input className="input" required value={userForm.name} onChange={e => setUserForm(p => ({ ...p, name: e.target.value }))} /></div>
+          <div><label className="label">Email *</label><input className="input" required type="email" value={userForm.email} onChange={e => setUserForm(p => ({ ...p, email: e.target.value }))} /></div>
+          <div><label className="label">New Password <span style={{ color: 'var(--t3)', textTransform: 'none', letterSpacing: 0 }}>(leave blank to keep current)</span></label><input className="input" type="password" value={userForm.password} onChange={e => setUserForm(p => ({ ...p, password: e.target.value }))} /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label className="label">Job Role</label>
+              <select className="input" value={userForm.role} onChange={e => setUserForm(p => ({ ...p, role: e.target.value }))}>
+                {USER_ROLES.map(r => <option key={r}>{r}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">System Role</label>
+              <select className="input" value={userForm.system_role} onChange={e => setUserForm(p => ({ ...p, system_role: e.target.value }))}>
+                {SYSTEM_ROLES.map(r => <option key={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setShowEditUser(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Add Global Template Modal ── */}
       <Modal open={showAddTemplate} onClose={() => setShowAddTemplate(false)} title="Add Global Template">
         <form onSubmit={handleAddTemplate} className="space-y-4">
-          <div>
-            <label className="label">Name *</label>
-            <input className="input" required value={templateForm.name} onChange={e => setTemplateForm(p => ({ ...p, name: e.target.value }))} />
-          </div>
+          <div><label className="label">Name *</label><input className="input" required value={templateForm.name} onChange={e => setTemplateForm(p => ({ ...p, name: e.target.value }))} /></div>
           <div>
             <label className="label">Template Type</label>
             <select className="input" value={templateForm.template_type} onChange={e => setTemplateForm(p => ({ ...p, template_type: e.target.value }))}>
               {TEMPLATE_TYPES.map(t => <option key={t} value={t}>{TEMPLATE_TYPE_LABELS[t]}</option>)}
             </select>
           </div>
-          <div>
-            <label className="label">Description</label>
-            <input className="input" value={templateForm.description} onChange={e => setTemplateForm(p => ({ ...p, description: e.target.value }))} />
+          <div><label className="label">Description</label><input className="input" value={templateForm.description} onChange={e => setTemplateForm(p => ({ ...p, description: e.target.value }))} /></div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['file', 'paste'].map(m => (
+              <button key={m} type="button" onClick={() => setUploadMode(m)}
+                style={{
+                  flex: 1, padding: '8px', fontSize: 13, borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
+                  background: uploadMode === m ? 'var(--cyan-dim)' : 'var(--bg3)',
+                  color: uploadMode === m ? 'var(--cyan)' : 'var(--t2)',
+                  border: `1px solid ${uploadMode === m ? 'var(--border-hi)' : 'var(--border)'}`,
+                }}>
+                {m === 'file' ? '📁 Upload File' : '📋 Paste Content'}
+              </button>
+            ))}
           </div>
-
-          <div className="flex gap-2">
-            <button type="button"
-              onClick={() => setUploadMode('file')}
-              className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${uploadMode === 'file' ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>
-              <Upload className="w-4 h-4 inline mr-1" /> Upload File
-            </button>
-            <button type="button"
-              onClick={() => setUploadMode('paste')}
-              className={`flex-1 py-2 text-sm rounded-lg border transition-colors ${uploadMode === 'paste' ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>
-              <FileText className="w-4 h-4 inline mr-1" /> Paste Content
-            </button>
-          </div>
-
           {uploadMode === 'file' ? (
             <div>
-              <input ref={fileInputRef} type="file" className="hidden" onChange={e => setUploadFile(e.target.files[0])} />
+              <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={e => setUploadFile(e.target.files[0])} />
               <button type="button" onClick={() => fileInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 transition-colors">
+                style={{ width: '100%', border: '2px dashed var(--border)', borderRadius: 8, padding: '16px', fontSize: 13, color: uploadFile ? 'var(--cyan)' : 'var(--t3)', background: 'none', cursor: 'pointer' }}>
                 {uploadFile ? uploadFile.name : 'Click to select file'}
               </button>
             </div>
           ) : (
             <div>
               <label className="label">Content *</label>
-              <textarea className="input min-h-32 resize-none font-mono text-xs"
-                value={templateForm.content}
-                onChange={e => setTemplateForm(p => ({ ...p, content: e.target.value }))}
-                placeholder="Paste template content here..." />
+              <textarea className="input" rows={6} style={{ fontFamily: '"DM Mono",monospace', fontSize: 11, resize: 'none' }}
+                value={templateForm.content} onChange={e => setTemplateForm(p => ({ ...p, content: e.target.value }))} placeholder="Paste template content here…" />
             </div>
           )}
-
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => setShowAddTemplate(false)} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : 'Add Template'}</button>
+            <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Add Template'}</button>
           </div>
         </form>
       </Modal>
     </div>
   );
+}
+
+function SystemRoleBadge({ role }) {
+  const map = { SuperAdmin: 'badge-red', Admin: 'badge-amber', User: 'badge-gray' };
+  return <span className={`badge ${map[role] || 'badge-gray'}`}>{role}</span>;
 }
