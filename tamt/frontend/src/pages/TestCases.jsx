@@ -19,8 +19,8 @@ export default function TestCases() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{cases.length} cases</p>
+          <h1 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 800, fontSize: 24, color: 'var(--t1)' }}>Test Cases</h1>
+          <p style={{ color: 'var(--t3)', fontSize: 13, marginTop: 2 }}>{cases.length} cases</p>
         </div>
         <button
           onClick={() => {
@@ -40,7 +40,7 @@ export default function TestCases() {
 
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4" style={{ color: 'var(--t3)' }} />
           <input className="input pl-9" placeholder="Search test cases..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="input w-36" value={filter.status} onChange={e => setFilter(p => ({ ...p, status: e.target.value }))}>
@@ -57,20 +57,24 @@ export default function TestCases() {
         </select>
       </div>
 
-      <div className="card divide-y divide-gray-100">
-        {loading && <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>}
-        {!loading && cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No test cases found.</div>}
+      <div className="card" style={{ overflow: 'hidden' }}>
+        {loading && <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>Loading...</div>}
+        {!loading && cases.length === 0 && <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>No test cases found.</div>}
         {cases.map(tc => (
-          <Link key={tc.id} to={`/test-cases/${tc.id}`} className="flex items-center px-5 py-3 hover:bg-gray-50">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="font-medium text-sm text-gray-900 truncate">{tc.title}</span>
+          <Link key={tc.id} to={`/test-cases/${tc.id}`}
+            style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                <span style={{ fontWeight: 500, fontSize: 13, color: 'var(--t1)' }} className="truncate">{tc.title}</span>
                 <StatusBadge status={tc.status} />
                 <StatusBadge status={tc.priority} />
               </div>
-              <div className="text-xs text-gray-500">{tc.test_type} · {tc.automation_status}</div>
+              <div style={{ fontSize: 12, color: 'var(--t3)' }}>{tc.test_type} · {tc.automation_status}</div>
             </div>
-            <div className="text-xs text-gray-500 ml-4">{tc.script_count || 0} script{tc.script_count !== 1 ? 's' : ''}</div>
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginLeft: 16 }}>{tc.script_count || 0} script{tc.script_count !== 1 ? 's' : ''}</div>
           </Link>
         ))}
       </div>

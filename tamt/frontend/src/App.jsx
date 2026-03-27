@@ -1,6 +1,7 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Layout from './components/common/Layout.jsx';
+import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Projects from './pages/Projects.jsx';
 import ProjectDetail from './pages/ProjectDetail.jsx';
@@ -16,27 +17,48 @@ import Defects from './pages/Defects.jsx';
 import Reports from './pages/Reports.jsx';
 import Settings from './pages/Settings.jsx';
 
+// Auth guard — redirects to /login if no token stored
+function RequireAuth({ children }) {
+  const token = localStorage.getItem('tamt_token');
+  const location = useLocation();
+  if (!token) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:id" element={<ProjectDetail />} />
-          <Route path="/features" element={<Features />} />
-          <Route path="/features/:id" element={<FeatureDetail />} />
-          <Route path="/test-plans" element={<TestPlans />} />
-          <Route path="/test-plans/:id" element={<TestPlanDetail />} />
-          <Route path="/test-cases" element={<TestCases />} />
-          <Route path="/test-cases/:id" element={<TestCaseDetail />} />
-          <Route path="/test-runs" element={<TestRuns />} />
-          <Route path="/test-runs/:id" element={<TestRunDetail />} />
-          <Route path="/defects" element={<Defects />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Protected */}
+        <Route path="/*" element={
+          <RequireAuth>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/projects/:id" element={<ProjectDetail />} />
+                <Route path="/features" element={<Features />} />
+                <Route path="/features/:id" element={<FeatureDetail />} />
+                <Route path="/test-plans" element={<TestPlans />} />
+                <Route path="/test-plans/:id" element={<TestPlanDetail />} />
+                <Route path="/test-cases" element={<TestCases />} />
+                <Route path="/test-cases/:id" element={<TestCaseDetail />} />
+                <Route path="/test-runs" element={<TestRuns />} />
+                <Route path="/test-runs/:id" element={<TestRunDetail />} />
+                <Route path="/defects" element={<Defects />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Layout>
+          </RequireAuth>
+        } />
+      </Routes>
     </BrowserRouter>
   );
 }

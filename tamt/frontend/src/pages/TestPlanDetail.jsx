@@ -54,39 +54,43 @@ export default function TestPlanDetail() {
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div className="text-sm text-gray-400 mt-8 text-center">Loading...</div>;
-  if (!plan) return <div className="text-sm text-red-500 mt-8 text-center">Test plan not found.</div>;
+  if (loading) return <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>Loading...</div>;
+  if (!plan) return <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--red)', fontSize: 13 }}>Test plan not found.</div>;
 
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <Link to="/test-plans" className="hover:text-brand-600">Test Plans</Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>
+            <Link to="/test-plans" style={{ color: 'var(--t3)', textDecoration: 'none' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--cyan)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>Test Plans</Link>
             <span>/</span>
-            <span className="text-gray-900">{plan.name}</span>
+            <span style={{ color: 'var(--t2)' }}>{plan.name}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{plan.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 800, fontSize: 24, color: 'var(--t1)' }}>{plan.name}</h1>
             <StatusBadge status={plan.status} />
           </div>
-          <p className="text-sm text-gray-500 mt-1">{plan.target_release && `Release: ${plan.target_release}`}</p>
+          {plan.target_release && <p style={{ color: 'var(--t3)', fontSize: 13, marginTop: 4 }}>Release: {plan.target_release}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={runGapAnalysis} className="btn-purple text-sm"><Bot className="w-4 h-4" /> Gap Analysis</button>
+          <button onClick={runGapAnalysis} className="btn-secondary text-sm"><Bot className="w-4 h-4" /> Gap Analysis</button>
           <button onClick={() => setShowCreateRun(true)} className="btn-primary text-sm"><Play className="w-4 h-4" /> New Test Run</button>
         </div>
       </div>
 
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-0">
-          {TABS.map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-900'}`}>
-              {t}
-            </button>
-          ))}
-        </nav>
+      <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', gap: 0 }}>
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: '10px 16px', fontSize: 13, fontWeight: 500,
+            borderBottom: tab === t ? '2px solid var(--cyan)' : '2px solid transparent',
+            color: tab === t ? 'var(--cyan)' : 'var(--t2)',
+            background: 'none', border: 'none',
+            borderBottom: tab === t ? '2px solid var(--cyan)' : '2px solid transparent',
+            cursor: 'pointer', transition: 'color 0.2s',
+          }}>{t}</button>
+        ))}
       </div>
 
       {tab === 'Gap Analysis' && agentPanel && (
@@ -95,7 +99,7 @@ export default function TestPlanDetail() {
         </div>
       )}
       {tab === 'Gap Analysis' && !agentPanel && (
-        <div className="card p-8 text-center text-gray-400 text-sm">
+        <div className="card" style={{ padding: '32px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>
           Click "Gap Analysis" to run an AI-powered coverage analysis.
         </div>
       )}
@@ -107,15 +111,21 @@ export default function TestPlanDetail() {
               <Plus className="w-4 h-4" /> Add Feature
             </button>
           </div>
-          <div className="card divide-y divide-gray-100">
-            {(plan.features || []).length === 0 && <div className="p-6 text-center text-gray-400 text-sm">No features added.</div>}
+          <div className="card" style={{ overflow: 'hidden' }}>
+            {(plan.features || []).length === 0 && <div style={{ padding: '24px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>No features added.</div>}
             {(plan.features || []).map(f => (
-              <Link key={f.id} to={`/features/${f.id}`} className="flex items-center px-5 py-3 hover:bg-gray-50">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2"><span className="font-medium text-sm text-gray-900">{f.name}</span><StatusBadge status={f.priority} /></div>
-                  <div className="text-xs text-gray-500">{f.feature_type} · {f.prereq_readiness}% ready</div>
+              <Link key={f.id} to={`/features/${f.id}`}
+                style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <span style={{ fontWeight: 500, fontSize: 13, color: 'var(--t1)' }}>{f.name}</span>
+                    <StatusBadge status={f.priority} />
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--t3)' }}>{f.feature_type} · {f.prereq_readiness}% ready</div>
                 </div>
-                <div className="text-xs text-gray-500 ml-4">{f.test_case_count} cases</div>
+                <div style={{ fontSize: 12, color: 'var(--t3)', marginLeft: 16 }}>{f.test_case_count} cases</div>
               </Link>
             ))}
           </div>
@@ -123,13 +133,16 @@ export default function TestPlanDetail() {
       )}
 
       {tab === 'Test Runs' && (
-        <div className="card divide-y divide-gray-100">
-          {(plan.testRuns || []).length === 0 && <div className="p-6 text-center text-gray-400 text-sm">No test runs yet.</div>}
+        <div className="card" style={{ overflow: 'hidden' }}>
+          {(plan.testRuns || []).length === 0 && <div style={{ padding: '24px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>No test runs yet.</div>}
           {(plan.testRuns || []).map(r => (
-            <Link key={r.id} to={`/test-runs/${r.id}`} className="flex items-center px-5 py-3 hover:bg-gray-50">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm text-gray-900">{r.name}</div>
-                <div className="text-xs text-gray-500">{r.created_at}</div>
+            <Link key={r.id} to={`/test-runs/${r.id}`}
+              style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--t1)' }}>{r.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--t3)' }}>{r.created_at}</div>
               </div>
               <StatusBadge status={r.status} />
             </Link>
@@ -138,11 +151,14 @@ export default function TestPlanDetail() {
       )}
 
       <Modal open={showAddFeature} onClose={() => setShowAddFeature(false)} title="Add Feature to Plan">
-        <div className="space-y-2 max-h-80 overflow-y-auto">
+        <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {allFeatures.filter(f => !(plan.features || []).some(pf => pf.id === f.id)).map(f => (
-            <button key={f.id} onClick={() => handleAddFeature(f.id)} className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 border border-gray-200 text-sm">
-              <div className="font-medium">{f.name}</div>
-              <div className="text-gray-500 text-xs">{f.feature_type} · {f.priority}</div>
+            <button key={f.id} onClick={() => handleAddFeature(f.id)}
+              style={{ textAlign: 'left', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', cursor: 'pointer', color: 'var(--t1)' }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-hi)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+              <div style={{ fontWeight: 500, fontSize: 13 }}>{f.name}</div>
+              <div style={{ color: 'var(--t3)', fontSize: 11 }}>{f.feature_type} · {f.priority}</div>
             </button>
           ))}
         </div>

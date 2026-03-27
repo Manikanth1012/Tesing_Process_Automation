@@ -1,8 +1,8 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, ClipboardList, Layers,
-  TestTube, Play, Bug, BarChart3, Settings,
+  TestTube, Play, Bug, BarChart3, Settings, LogOut,
 } from 'lucide-react';
 
 const NAV = [
@@ -43,6 +43,15 @@ function NavItem({ to, icon: Icon, label, exact }) {
 }
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+  const user = (() => { try { return JSON.parse(localStorage.getItem('tamt_user') || '{}'); } catch { return {}; } })();
+
+  const handleLogout = () => {
+    localStorage.removeItem('tamt_token');
+    localStorage.removeItem('tamt_user');
+    navigate('/login', { replace: true });
+  };
+
   return (
     <aside
       style={{ background: 'var(--bg2)', borderRight: '1px solid var(--border)' }}
@@ -79,7 +88,27 @@ export default function Sidebar() {
       {/* Bottom */}
       <div className="px-2 py-2" style={{ borderTop: '1px solid var(--border)' }}>
         <NavItem to="/settings" icon={Settings} label="Settings" />
-        <div className="flex items-center gap-2 px-3 py-2">
+
+        {/* User info + logout */}
+        {user?.name && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginTop: 4, borderTop: '1px solid var(--border)' }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--cyan-dim)', border: '1px solid var(--border-hi)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--cyan)', fontWeight: 600 }}>
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: 'var(--t2)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
+              <div style={{ fontFamily: '"DM Mono",monospace', fontSize: 9, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{user.role || 'USER'}</div>
+            </div>
+            <button onClick={handleLogout} title="Sign out" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', padding: 3, borderRadius: 4 }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 px-3 py-1.5">
           <span className="pulse-dot" />
           <span style={{ fontFamily: '"DM Mono",monospace', fontSize: 9, color: 'var(--t3)', letterSpacing: '0.06em' }}>
             v1.3.0 · RF 7.x

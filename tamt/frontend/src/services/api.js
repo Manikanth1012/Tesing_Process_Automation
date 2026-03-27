@@ -163,6 +163,11 @@ export const assistantAPI = {
   chat: (message, history = []) => api.post('/assistant/chat', { message, history }),
 };
 
+// ─── Auth ──────────────────────────────────────────────────────────────────────
+export const authAPI = {
+  changePassword: (payload) => api.post('/auth/change-password', payload),
+};
+
 // ─── XLSX Export helpers ────────────────────────────────────────────────────────
 // These trigger a file download by navigating directly to the endpoint.
 export function downloadXlsx(path) {

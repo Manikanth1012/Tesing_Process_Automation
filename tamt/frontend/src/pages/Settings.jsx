@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Trash2, Upload, FileText, Plus, UserPlus, Edit2, X, ShieldCheck } from 'lucide-react';
-import { environmentsAPI, agentsAPI, refTemplatesAPI, usersAPI } from '../services/api.js';
+import { Trash2, Upload, FileText, Plus, UserPlus, Edit2, X, ShieldCheck, KeyRound } from 'lucide-react';
+import { environmentsAPI, agentsAPI, refTemplatesAPI, usersAPI, authAPI } from '../services/api.js';
 import Modal from '../components/common/Modal.jsx';
 
 const TEMPLATE_TYPES = ['FUNCTIONAL_TC', 'GUI_TC', 'API_SPEC', 'SWAGGER'];
@@ -10,7 +10,7 @@ const TEMPLATE_TYPE_LABELS = {
   API_SPEC: 'API Specification',
   SWAGGER: 'Swagger / OpenAPI Contract',
 };
-const TABS = ['Environments', 'Users & Roles', 'Global Templates', 'Agent Logs'];
+const TABS = ['Environments', 'Users & Roles', 'Global Templates', 'Agent Logs', 'My Profile'];
 const USER_ROLES = ['QA_ENGINEER', 'QA_LEAD', 'DEVELOPER', 'MANAGER', 'ADMIN'];
 const SYSTEM_ROLES = ['User', 'Admin', 'SuperAdmin'];
 
@@ -57,6 +57,11 @@ export default function Settings() {
 
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
+
+  // My Profile — Change Password
+  const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [pwMsg, setPwMsg] = useState(null); // { type: 'success'|'error', text: '' }
+  const currentUser = (() => { try { return JSON.parse(localStorage.getItem('tamt_user') || '{}'); } catch { return {}; } })();
 
   useEffect(() => {
     if (tab === 'Environments') environmentsAPI.list().then(r => setEnvironments(r.data));
@@ -293,6 +298,64 @@ export default function Settings() {
               <div style={{ fontFamily: '"DM Mono",monospace', fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>{log.created_at}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── My Profile ── */}
+      {tab === 'My Profile' && (
+        <div className="space-y-4" style={{ maxWidth: 480 }}>
+          <div className="card" style={{ padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--cyan-dim)', border: '1px solid var(--border-hi)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"DM Mono",monospace', fontSize: 18, color: 'var(--cyan)', fontWeight: 600, flexShrink: 0 }}>
+                {currentUser.name?.charAt(0).toUpperCase() || '?'}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--t1)' }}>{currentUser.name || 'Unknown'}</div>
+                <div style={{ fontSize: 12, color: 'var(--t3)', fontFamily: '"DM Mono",monospace' }}>{currentUser.email}</div>
+              </div>
+            </div>
+
+            <h3 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--t1)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <KeyRound className="w-4 h-4" style={{ color: 'var(--cyan)' }} /> Change Password
+            </h3>
+
+            {pwMsg && (
+              <div style={{
+                padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13,
+                background: pwMsg.type === 'success' ? 'var(--green-dim)' : 'var(--red-dim)',
+                border: `1px solid ${pwMsg.type === 'success' ? 'rgba(61,214,140,0.3)' : 'rgba(255,107,107,0.3)'}`,
+                color: pwMsg.type === 'success' ? 'var(--green)' : 'var(--red)',
+              }}>{pwMsg.text}</div>
+            )}
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setPwMsg(null);
+              if (pwForm.new_password !== pwForm.confirm_password) {
+                setPwMsg({ type: 'error', text: 'New passwords do not match.' });
+                return;
+              }
+              if (pwForm.new_password.length < 8) {
+                setPwMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
+                return;
+              }
+              setSaving(true);
+              try {
+                await authAPI.changePassword({ current_password: pwForm.current_password, new_password: pwForm.new_password });
+                setPwMsg({ type: 'success', text: 'Password changed successfully.' });
+                setPwForm({ current_password: '', new_password: '', confirm_password: '' });
+              } catch (err) {
+                setPwMsg({ type: 'error', text: err.response?.data?.error || 'Failed to change password.' });
+              } finally { setSaving(false); }
+            }} className="space-y-3">
+              <div><label className="label">Current Password *</label><input className="input" type="password" required value={pwForm.current_password} onChange={e => setPwForm(p => ({ ...p, current_password: e.target.value }))} /></div>
+              <div><label className="label">New Password *</label><input className="input" type="password" required value={pwForm.new_password} onChange={e => setPwForm(p => ({ ...p, new_password: e.target.value }))} placeholder="Min. 8 characters" /></div>
+              <div><label className="label">Confirm New Password *</label><input className="input" type="password" required value={pwForm.confirm_password} onChange={e => setPwForm(p => ({ ...p, confirm_password: e.target.value }))} /></div>
+              <div style={{ paddingTop: 4 }}>
+                <button type="submit" disabled={saving} className="btn-primary text-sm">{saving ? 'Saving…' : 'Update Password'}</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

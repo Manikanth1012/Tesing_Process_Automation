@@ -143,11 +143,11 @@ export default function FeatureDetail() {
     load();
   };
 
-  if (loading) return <div className="text-sm text-gray-400 mt-8 text-center">Loading...</div>;
-  if (!feature) return <div className="text-sm text-red-500 mt-8 text-center">Feature not found.</div>;
+  if (loading) return <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>Loading...</div>;
+  if (!feature) return <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--red)', fontSize: 13 }}>Feature not found.</div>;
 
-  const readinessColor = feature.prereq_readiness >= 100 ? 'text-green-600'
-    : feature.prereq_readiness >= 70 ? 'text-yellow-600' : 'text-red-600';
+  const readinessColor = feature.prereq_readiness >= 100 ? 'var(--green)'
+    : feature.prereq_readiness >= 70 ? 'var(--amber)' : 'var(--red)';
   const refTemplates = feature.referenceTemplates || [];
 
   return (
@@ -155,26 +155,26 @@ export default function FeatureDetail() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <Link to="/features" className="hover:text-brand-600">Features</Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>
+            <Link to="/features" style={{ color: 'var(--t3)', textDecoration: 'none' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--cyan)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>Features</Link>
             <span>/</span>
-            <span className="text-gray-900">{feature.name}</span>
+            <span style={{ color: 'var(--t2)' }}>{feature.name}</span>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900">{feature.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h1 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 800, fontSize: 24, color: 'var(--t1)' }}>{feature.name}</h1>
             <StatusBadge status={feature.status} />
             <StatusBadge status={feature.priority} />
-            <span className="text-sm bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">{feature.feature_type}</span>
+            <span className="badge badge-cyan">{feature.feature_type}</span>
             {feature.feature_type === 'API' && feature.api_sub_type && (
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-semibold">
-                {feature.api_sub_type}
-              </span>
+              <span className="badge badge-purple">{feature.api_sub_type}</span>
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-1">{feature.description}</p>
+          {feature.description && <p style={{ color: 'var(--t3)', fontSize: 13, marginTop: 6 }}>{feature.description}</p>}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={() => runAgent('PREREQ_ANALYST')} disabled={agentLoading} className="btn-purple text-sm">
+          <button onClick={() => runAgent('PREREQ_ANALYST')} disabled={agentLoading} className="btn-secondary text-sm">
             <Bot className="w-4 h-4" /> Analyse Pre-Reqs
           </button>
           <button
@@ -189,39 +189,34 @@ export default function FeatureDetail() {
       </div>
 
       {/* Readiness bar */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">Pre-Req Readiness</span>
-          <span className={`text-lg font-bold ${readinessColor}`}>{feature.prereq_readiness ?? 0}%</span>
+      <div className="card" style={{ padding: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500 }}>Pre-Req Readiness</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: readinessColor }}>{feature.prereq_readiness ?? 0}%</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className={`h-2 rounded-full transition-all ${
-              feature.prereq_readiness >= 100 ? 'bg-green-500'
-              : feature.prereq_readiness >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-            }`}
-            style={{ width: `${feature.prereq_readiness ?? 0}%` }}
-          />
+        <div className="prereq-bar">
+          <div className="prereq-bar-fill" style={{ width: `${feature.prereq_readiness ?? 0}%`, background: readinessColor }} />
         </div>
         {feature.feature_type === 'API' && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-600">API Testing Sub-Type:</span>
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--t2)', fontFamily: '"DM Mono",monospace', textTransform: 'uppercase', letterSpacing: '0.06em' }}>API Sub-Type:</span>
               {API_SUB_TYPES.map(sub => (
                 <button
                   key={sub}
                   onClick={() => handleUpdateApiSubType(sub)}
-                  className={`text-xs px-3 py-1 rounded-full font-medium border transition-colors ${
-                    feature.api_sub_type === sub
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                  }`}
+                  style={{
+                    fontSize: 11, padding: '3px 10px', borderRadius: 20, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
+                    background: feature.api_sub_type === sub ? 'var(--purple-dim)' : 'var(--bg3)',
+                    color: feature.api_sub_type === sub ? 'var(--purple)' : 'var(--t2)',
+                    border: `1px solid ${feature.api_sub_type === sub ? 'rgba(179,136,255,0.4)' : 'var(--border)'}`,
+                  }}
                 >
                   {sub}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-1">
+            <p style={{ fontSize: 11, color: 'var(--t3)', marginTop: 6 }}>
               {feature.api_sub_type === 'Technical' && 'Tests focus on API contracts, schemas, authentication, and protocol behaviour.'}
               {feature.api_sub_type === 'Functional' && 'Tests focus on business rules and end-to-end functional scenarios via API calls.'}
               {feature.api_sub_type === 'Both' && 'Tests cover both technical contract validation and business functional flows.'}
@@ -243,20 +238,22 @@ export default function FeatureDetail() {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-0 overflow-x-auto">
-          {TABS.map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                tab === t ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-900'
-              }`}>
-              {t}
-              {t === 'Templates & Specs' && refTemplates.length > 0 && (
-                <span className="ml-1.5 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">{refTemplates.length}</span>
-              )}
-            </button>
-          ))}
-        </nav>
+      <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', gap: 0, overflowX: 'auto' }}>
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: '10px 16px', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
+            borderBottom: tab === t ? '2px solid var(--cyan)' : '2px solid transparent',
+            color: tab === t ? 'var(--cyan)' : 'var(--t2)',
+            background: 'none', border: 'none',
+            borderBottom: tab === t ? '2px solid var(--cyan)' : '2px solid transparent',
+            cursor: 'pointer', transition: 'color 0.2s',
+          }}>
+            {t}
+            {t === 'Templates & Specs' && refTemplates.length > 0 && (
+              <span className="badge badge-amber" style={{ marginLeft: 6 }}>{refTemplates.length}</span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* ── Tab: Overview ── */}
@@ -267,9 +264,9 @@ export default function FeatureDetail() {
             { label: 'Prerequisites', value: feature.prerequisites?.length ?? 0 },
             { label: 'Templates & Specs', value: refTemplates.length },
           ].map(s => (
-            <div key={s.label} className="card p-5 text-center">
-              <div className="text-3xl font-bold text-gray-900">{s.value}</div>
-              <div className="text-sm text-gray-500 mt-1">{s.label}</div>
+            <div key={s.label} className="card" style={{ padding: 20, textAlign: 'center' }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--t1)', fontFamily: '"Syne",sans-serif' }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 4 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -283,20 +280,20 @@ export default function FeatureDetail() {
               <Plus className="w-4 h-4" /> Add Prerequisite
             </button>
           </div>
-          <div className="card divide-y divide-gray-100">
+          <div className="card" style={{ overflow: 'hidden' }}>
             {(feature.prerequisites || []).length === 0 && (
-              <div className="p-6 text-center text-gray-400 text-sm">No prerequisites defined.</div>
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>No prerequisites defined.</div>
             )}
             {(feature.prerequisites || []).map(p => (
-              <div key={p.id} className="flex items-center px-5 py-3 gap-4">
-                <button onClick={() => handlePrereqUpdate(p.id, !p.is_ready)}>
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', gap: 12, borderBottom: '1px solid var(--border)' }}>
+                <button onClick={() => handlePrereqUpdate(p.id, !p.is_ready)} style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: 0 }}>
                   {p.is_ready
-                    ? <CheckCircle className="w-5 h-5 text-green-500" />
-                    : <XCircle className="w-5 h-5 text-gray-300" />}
+                    ? <CheckCircle className="w-5 h-5" style={{ color: 'var(--green)' }} />
+                    : <XCircle className="w-5 h-5" style={{ color: 'var(--t3)' }} />}
                 </button>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900">{p.description}</div>
-                  <div className="text-xs text-gray-500">{p.category}{p.notes ? ` · ${p.notes}` : ''}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{p.description}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t3)' }}>{p.category}{p.notes ? ` · ${p.notes}` : ''}</div>
                 </div>
               </div>
             ))}
@@ -321,21 +318,24 @@ export default function FeatureDetail() {
               </button>
             </div>
           </div>
-          <div className="card divide-y divide-gray-100">
+          <div className="card" style={{ overflow: 'hidden' }}>
             {(feature.testCases || []).length === 0 && (
-              <div className="p-6 text-center text-gray-400 text-sm">No test cases yet.</div>
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>No test cases yet.</div>
             )}
             {(feature.testCases || []).map(tc => (
-              <Link key={tc.id} to={`/test-cases/${tc.id}`} className="flex items-center px-5 py-3 hover:bg-gray-50">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-gray-900">{tc.title}</span>
+              <Link key={tc.id} to={`/test-cases/${tc.id}`}
+                style={{ display: 'flex', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid var(--border)', textDecoration: 'none' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{tc.title}</span>
                     <StatusBadge status={tc.status} />
                     <StatusBadge status={tc.priority} />
                   </div>
-                  <div className="text-xs text-gray-500">{tc.test_type} · {tc.automation_status}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t3)' }}>{tc.test_type} · {tc.automation_status}</div>
                 </div>
-                <div className="text-xs text-gray-500 ml-4">{tc.script_count || 0} script{tc.script_count !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 16 }}>{tc.script_count || 0} script{tc.script_count !== 1 ? 's' : ''}</div>
               </Link>
             ))}
           </div>
@@ -358,40 +358,40 @@ export default function FeatureDetail() {
           {Object.entries(TEMPLATE_TYPE_META).map(([type, meta]) => {
             const items = refTemplates.filter(t => t.template_type === type);
             return (
-              <div key={type} className="card">
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 bg-gray-50 rounded-t-xl">
-                  <span className="text-base">{meta.icon}</span>
-                  <span className="text-sm font-semibold text-gray-800">{meta.label}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${meta.color}`}>{items.length} file{items.length !== 1 ? 's' : ''}</span>
+              <div key={type} className="card" style={{ overflow: 'hidden' }}>
+                <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--border)', background: 'var(--bg3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>{meta.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{meta.label}</span>
+                  <span className="badge badge-gray" style={{ marginLeft: 'auto' }}>{items.length} file{items.length !== 1 ? 's' : ''}</span>
                 </div>
                 {items.length === 0 ? (
-                  <div className="px-5 py-4 text-sm text-gray-400 italic">No {meta.label.toLowerCase()} uploaded yet.</div>
+                  <div style={{ padding: '16px 18px', fontSize: 12, color: 'var(--t3)', fontStyle: 'italic' }}>No {meta.label.toLowerCase()} uploaded yet.</div>
                 ) : (
-                  <div className="divide-y divide-gray-100">
-                    {items.map(tmpl => (
-                      <div key={tmpl.id} className="flex items-center px-5 py-3 gap-3">
-                        <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-900">{tmpl.name}</div>
-                          <div className="text-xs text-gray-500">{tmpl.file_name}
-                            {tmpl.is_global ? <span className="ml-2 text-xs bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded">Global</span> : ''}
-                          </div>
-                          {tmpl.description && <div className="text-xs text-gray-400 mt-0.5">{tmpl.description}</div>}
+                  items.map(tmpl => (
+                    <div key={tmpl.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 18px', gap: 10, borderBottom: '1px solid var(--border)' }}>
+                      <FileText className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--t3)' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{tmpl.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--t3)' }}>{tmpl.file_name}
+                          {tmpl.is_global ? <span className="badge badge-amber" style={{ marginLeft: 6 }}>Global</span> : ''}
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <button onClick={() => handleViewTemplate(tmpl)} className="p-1.5 rounded hover:bg-gray-100" title="View content">
-                            <Eye className="w-4 h-4 text-gray-500" />
-                          </button>
-                          <a href={`/api/v1/ref-templates/${tmpl.id}/download`} className="p-1.5 rounded hover:bg-gray-100" title="Download">
-                            <Download className="w-4 h-4 text-gray-500" />
-                          </a>
-                          <button onClick={() => handleDeleteTemplate(tmpl.id)} className="p-1.5 rounded hover:bg-red-50" title="Delete">
-                            <Trash2 className="w-4 h-4 text-red-400" />
-                          </button>
-                        </div>
+                        {tmpl.description && <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>{tmpl.description}</div>}
                       </div>
-                    ))}
-                  </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => handleViewTemplate(tmpl)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', padding: 4, borderRadius: 4 }} title="View content">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <a href={`/api/v1/ref-templates/${tmpl.id}/download`} style={{ color: 'var(--t3)', padding: 4, borderRadius: 4, display: 'flex' }} title="Download">
+                          <Download className="w-4 h-4" />
+                        </a>
+                        <button onClick={() => handleDeleteTemplate(tmpl.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t3)', padding: 4, borderRadius: 4 }} title="Delete"
+                          onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             );
@@ -401,21 +401,21 @@ export default function FeatureDetail() {
 
       {/* ── Tab: Scripts ── */}
       {tab === 'Scripts' && (
-        <div className="card divide-y divide-gray-100">
-          <div className="px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-50">RF Scripts for this feature</div>
+        <div className="card" style={{ overflow: 'hidden' }}>
+          <div style={{ padding: '10px 18px', background: 'var(--bg3)', borderBottom: '1px solid var(--border)', fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>RF Scripts for this feature</div>
           {(feature.testCases || []).flatMap(tc => (tc.scripts || []).map(s => ({ ...s, tcTitle: tc.title }))).length === 0 && (
-            <div className="p-6 text-center text-gray-400 text-sm">No scripts yet. Generate scripts from test cases.</div>
+            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>No scripts yet. Generate scripts from test cases.</div>
           )}
           {(feature.testCases || []).flatMap(tc =>
             (tc.scripts || []).map(s => (
-              <div key={s.id} className="flex items-center px-5 py-3 gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900">{s.script_name}</div>
-                  <div className="text-xs text-gray-500">{tc.title} · v{s.version}</div>
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 18px', gap: 10, borderBottom: '1px solid var(--border)' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{s.script_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t3)' }}>{tc.title} · v{s.version}</div>
                 </div>
                 <StatusBadge status={s.status} />
-                <a href={`/api/v1/rf/scripts/${s.id}/download`} className="p-1.5 rounded hover:bg-gray-100">
-                  <Download className="w-4 h-4 text-gray-500" />
+                <a href={`/api/v1/rf/scripts/${s.id}/download`} style={{ color: 'var(--t3)', padding: 4, borderRadius: 4, display: 'flex' }}>
+                  <Download className="w-4 h-4" />
                 </a>
               </div>
             ))

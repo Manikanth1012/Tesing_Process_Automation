@@ -51,8 +51,8 @@ export default function TestRunDetail() {
     } catch (err) { alert(err.message); }
   };
 
-  if (loading) return <div className="text-sm text-gray-400 mt-8 text-center">Loading...</div>;
-  if (!run) return <div className="text-sm text-red-500 mt-8 text-center">Test run not found.</div>;
+  if (loading) return <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>Loading...</div>;
+  if (!run) return <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--red)', fontSize: 13 }}>Test run not found.</div>;
 
   const executions = run.executions || [];
   const passed = executions.filter(e => e.status === 'Pass').length;
@@ -63,18 +63,20 @@ export default function TestRunDetail() {
     <div className="space-y-5">
       <div className="flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <Link to="/test-runs" className="hover:text-brand-600">Test Runs</Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)', marginBottom: 6 }}>
+            <Link to="/test-runs" style={{ color: 'var(--t3)', textDecoration: 'none' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--cyan)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>Test Runs</Link>
             <span>/</span>
-            <span className="text-gray-900">{run.name}</span>
+            <span style={{ color: 'var(--t2)' }}>{run.name}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{run.name}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h1 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 800, fontSize: 24, color: 'var(--t1)' }}>{run.name}</h1>
             <StatusBadge status={run.status} />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={triggerMonitor} className="btn-purple text-sm"><Bot className="w-4 h-4" /> Analyse Run</button>
+          <button onClick={triggerMonitor} className="btn-secondary text-sm"><Bot className="w-4 h-4" /> Analyse Run</button>
           {run.status === 'Pending' && (
             <button onClick={handleExecute} disabled={executing} className="btn-primary text-sm">
               <Play className="w-4 h-4" /> {executing ? 'Executing...' : 'Execute'}
@@ -86,14 +88,14 @@ export default function TestRunDetail() {
       {/* Summary */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: 'Total', value: executions.length, color: 'text-gray-900' },
-          { label: 'Passed', value: passed, color: 'text-green-600' },
-          { label: 'Failed', value: failed, color: 'text-red-600' },
-          { label: 'Pass Rate', value: `${passRate}%`, color: passRate >= 80 ? 'text-green-600' : passRate >= 50 ? 'text-yellow-600' : 'text-red-600' },
+          { label: 'Total', value: executions.length, color: 'var(--t1)' },
+          { label: 'Passed', value: passed, color: 'var(--green)' },
+          { label: 'Failed', value: failed, color: 'var(--red)' },
+          { label: 'Pass Rate', value: `${passRate}%`, color: passRate >= 80 ? 'var(--green)' : passRate >= 50 ? 'var(--amber)' : 'var(--red)' },
         ].map(s => (
-          <div key={s.label} className="card p-4 text-center">
-            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          <div key={s.label} className="card" style={{ padding: 16, textAlign: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: s.color, fontFamily: '"Syne",sans-serif' }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -107,29 +109,32 @@ export default function TestRunDetail() {
 
       {/* RF Log */}
       {run.rfLog && (
-        <div className="card p-4 text-sm text-gray-600">
-          <div className="font-medium text-gray-900 mb-2">RF Execution Log</div>
+        <div className="card" style={{ padding: 16 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--t1)', marginBottom: 10 }}>RF Execution Log</div>
           <div className="grid grid-cols-4 gap-3">
             {[['Total', run.rfLog.total_tests], ['Passed', run.rfLog.passed], ['Failed', run.rfLog.failed], ['Duration', `${run.rfLog.execution_time_secs?.toFixed(1)}s`]].map(([k, v]) => (
-              <div key={k}><div className="text-xs text-gray-500">{k}</div><div className="font-semibold text-gray-900">{v}</div></div>
+              <div key={k}>
+                <div style={{ fontSize: 11, color: 'var(--t3)', fontFamily: '"DM Mono",monospace', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k}</div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--t1)', marginTop: 2 }}>{v}</div>
+              </div>
             ))}
           </div>
         </div>
       )}
 
       {/* Executions */}
-      <div className="card divide-y divide-gray-100">
-        <div className="px-5 py-3 text-sm font-semibold text-gray-700 bg-gray-50">Executions ({executions.length})</div>
-        {executions.length === 0 && <div className="p-6 text-center text-gray-400 text-sm">No executions yet.</div>}
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <div style={{ padding: '10px 18px', background: 'var(--bg3)', borderBottom: '1px solid var(--border)', fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>Executions ({executions.length})</div>
+        {executions.length === 0 && <div style={{ padding: '24px', textAlign: 'center', color: 'var(--t3)', fontSize: 13 }}>No executions yet.</div>}
         {executions.map(e => (
-          <div key={e.id} className="flex items-center px-5 py-3 gap-4">
+          <div key={e.id} style={{ display: 'flex', alignItems: 'center', padding: '12px 18px', gap: 12, borderBottom: '1px solid var(--border)' }}>
             <StatusBadge status={e.status} />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900">{e.title}</div>
-              {e.actual_result && <div className="text-xs text-gray-500 truncate mt-0.5">{e.actual_result}</div>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{e.title}</div>
+              {e.actual_result && <div style={{ fontSize: 11, color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{e.actual_result}</div>}
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              {e.duration_ms && <span>{e.duration_ms}ms</span>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {e.duration_ms && <span style={{ fontSize: 11, color: 'var(--t3)', fontFamily: '"DM Mono",monospace' }}>{e.duration_ms}ms</span>}
               {e.status === 'Fail' && (
                 <button onClick={() => triageFailure(e.id)} className="btn-danger text-xs py-1">
                   <Bot className="w-3 h-3" /> Triage

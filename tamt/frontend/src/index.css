@@ -181,3 +181,41 @@
 /* Prereq progress bar */
 .prereq-bar { height: 4px; border-radius: 2px; overflow: hidden; background: var(--bg3); }
 .prereq-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+/* ── Dark-theme compatibility overrides ─────────────────────────
+   Pages written before the dark-theme migration still use Tailwind
+   gray/white utilities. These remaps keep them legible without a
+   full page rewrite. */
+.text-gray-900 { color: var(--t1) !important; }
+.text-gray-800 { color: var(--t1) !important; }
+.text-gray-700 { color: var(--t2) !important; }
+.text-gray-600 { color: var(--t2) !important; }
+.text-gray-500 { color: var(--t3) !important; }
+.text-gray-400 { color: var(--t3) !important; }
+
+.bg-white       { background: var(--bg2) !important; }
+.bg-gray-50     { background: var(--bg3) !important; }
+.bg-gray-100    { background: var(--bg3) !important; }
+.bg-gray-200    { background: var(--bg3) !important; }
+
+.border-gray-200 { border-color: var(--border) !important; }
+.border-gray-100 { border-color: var(--border) !important; }
+.border-gray-300 { border-color: var(--border-hi) !important; }
+.divide-gray-100 > * + * { border-color: var(--border) !important; }
+.divide-gray-200 > * + * { border-color: var(--border) !important; }
+
+.hover\:bg-gray-50:hover  { background: var(--bg3) !important; }
+.hover\:bg-gray-100:hover { background: var(--bg3) !important; }
+.hover\:bg-gray-200:hover { background: var(--bg3) !important; }
+
+/* Recharts on dark bg */
+.recharts-text { fill: var(--t3) !important; }
+.recharts-cartesian-axis-line,
+.recharts-cartesian-grid line { stroke: var(--border) !important; }
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--bg3) !important;
+  border-color: var(--border-hi) !important;
+  color: var(--t1) !important;
+  border-radius: 8px !important;
+}
+
