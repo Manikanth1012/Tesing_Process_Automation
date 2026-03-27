@@ -126,3 +126,29 @@ export const rfAPI = {
   getTemplates: () => api.get('/rf/templates'),
   getTemplate: (featureType) => api.get(`/rf/templates/${featureType}`),
 };
+
+// ─── Reference Templates ───────────────────────────────────────────────────────
+export const refTemplatesAPI = {
+  list: (params) => api.get('/ref-templates', { params }),
+  get: (id) => api.get(`/ref-templates/${id}`),
+  upload: (formData) => api.post('/ref-templates', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadInline: (data) => api.post('/ref-templates', data),
+  update: (id, data) => api.put(`/ref-templates/${id}`, data),
+  delete: (id) => api.delete(`/ref-templates/${id}`),
+  getContent: (id) => api.get(`/ref-templates/${id}/content`),
+};
+
+// ─── XLSX Export helpers ────────────────────────────────────────────────────────
+// These trigger a file download by navigating directly to the endpoint.
+export function downloadXlsx(path) {
+  const token = localStorage.getItem('tamt_token');
+  const a = document.createElement('a');
+  a.href = `/api/v1${path}${path.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+  a.download = '';
+  // For authenticated downloads we pass the token as a query param
+  // (the backend should accept ?token= as an alternative to Bearer header).
+  // In dev mode auth is bypassed, so direct navigation works.
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}

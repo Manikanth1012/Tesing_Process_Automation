@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
-import { testCasesAPI } from '../services/api.js';
+import { Search, Download } from 'lucide-react';
+import { testCasesAPI, downloadXlsx } from '../services/api.js';
 import StatusBadge from '../components/common/StatusBadge.jsx';
 
 export default function TestCases() {
@@ -22,6 +22,20 @@ export default function TestCases() {
           <h1 className="text-2xl font-bold text-gray-900">Test Cases</h1>
           <p className="text-sm text-gray-500 mt-0.5">{cases.length} cases</p>
         </div>
+        <button
+          onClick={() => {
+            const qs = new URLSearchParams({
+              ...(filter.status && { status: filter.status }),
+              ...(filter.test_type && { test_type: filter.test_type }),
+              ...(filter.priority && { priority: filter.priority }),
+              ...(search && { search }),
+            }).toString();
+            downloadXlsx(`/reports/export/test-cases${qs ? '?' + qs : ''}`);
+          }}
+          className="btn-secondary text-sm"
+        >
+          <Download className="w-4 h-4" /> Export XLSX
+        </button>
       </div>
 
       <div className="flex gap-3">
