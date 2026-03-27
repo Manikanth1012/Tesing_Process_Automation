@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../config/database');
+const { index } = require('../services/vectorService');
 
 const router = express.Router();
 
@@ -50,7 +51,11 @@ router.post('/', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(name, description || '', target_release || '', start_date || null, end_date || null, project_id || null, req.user.id);
 
-  res.status(201).json(db.prepare('SELECT * FROM test_plans WHERE id = ?').get(result.lastInsertRowid));
+  const created = db.prepare('SELECT * FROM test_plans WHERE id = ?').get(result.lastInsertRowid);
+  const proj = project_id ? db.prepare('SELECT name FROM projects WHERE id = ?').get(project_id) : null;
+  index('TestPlan', created.id, `${name} ${description || ''} ${target_release || ''} ${proj?.name || ''}`,
+    { name, status: 'Draft', release: target_release || '', project: proj?.name || '' }).catch(() => {});
+  res.status(201).json(created);
 });
 
 router.put('/:id', (req, res) => {

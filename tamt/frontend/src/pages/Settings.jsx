@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Trash2, Upload, FileText, Plus, UserPlus, Edit2, X, ShieldCheck, KeyRound } from 'lucide-react';
-import { environmentsAPI, agentsAPI, refTemplatesAPI, usersAPI, authAPI } from '../services/api.js';
+import { Trash2, Upload, FileText, Plus, UserPlus, Edit2, X, ShieldCheck, KeyRound, Cpu, ChevronDown } from 'lucide-react';
+import { environmentsAPI, agentsAPI, refTemplatesAPI, usersAPI, authAPI, skillsAPI, assistantContextAPI } from '../services/api.js';
 import Modal from '../components/common/Modal.jsx';
 
 const TEMPLATE_TYPES = ['FUNCTIONAL_TC', 'GUI_TC', 'API_SPEC', 'SWAGGER'];
@@ -63,12 +63,60 @@ export default function Settings() {
   const [pwMsg, setPwMsg] = useState(null); // { type: 'success'|'error', text: '' }
   const currentUser = (() => { try { return JSON.parse(localStorage.getItem('tamt_user') || '{}'); } catch { return {}; } })();
 
+  // My Profile — Skills
+  const [mySkills, setMySkills] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [showSkillPicker, setShowSkillPicker] = useState(false);
+  const [newSkill, setNewSkill] = useState({ skill_name: '', skill_level: 'Intermediate' });
+  const [skillSearch, setSkillSearch] = useState('');
+  const [contextStatus, setContextStatus] = useState(null);
+  const [reindexing, setReindexing] = useState(false);
+
   useEffect(() => {
     if (tab === 'Environments') environmentsAPI.list().then(r => setEnvironments(r.data));
     else if (tab === 'Agent Logs') agentsAPI.getHistory({ limit: 50 }).then(r => setAgentLogs(r.data));
     else if (tab === 'Global Templates') loadGlobalTemplates();
     else if (tab === 'Users & Roles') usersAPI.list().then(r => setUsers(r.data));
+    else if (tab === 'My Profile') {
+      skillsAPI.getMySkills().then(r => setMySkills(r.data)).catch(() => {});
+      skillsAPI.getCatalog().then(r => setCatalog(r.data)).catch(() => {});
+      assistantContextAPI.status().then(r => setContextStatus(r.data)).catch(() => {});
+    }
   }, [tab]);
+
+  const handleAddSkill = async (skillName, level = newSkill.skill_level) => {
+    try {
+      const r = await skillsAPI.addSkill({ skill_name: skillName, skill_level: level });
+      setMySkills(prev => [...prev, r.data]);
+      setNewSkill(p => ({ ...p, skill_name: '' }));
+      setSkillSearch('');
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    }
+  };
+
+  const handleRemoveSkill = async (id) => {
+    await skillsAPI.removeSkill(id);
+    setMySkills(prev => prev.filter(s => s.id !== id));
+  };
+
+  const handleCycleLevel = async (skill) => {
+    const levels = ['Beginner', 'Intermediate', 'Expert'];
+    const next = levels[(levels.indexOf(skill.skill_level) + 1) % levels.length];
+    await skillsAPI.updateSkill(skill.id, { skill_level: next });
+    setMySkills(prev => prev.map(s => s.id === skill.id ? { ...s, skill_level: next } : s));
+  };
+
+  const handleReindex = async () => {
+    setReindexing(true);
+    try {
+      const r = await assistantContextAPI.reindex();
+      setContextStatus(prev => ({ ...prev, message: r.data.message }));
+      assistantContextAPI.status().then(r2 => setContextStatus(r2.data)).catch(() => {});
+    } catch (err) {
+      alert('Re-index failed: ' + (err.response?.data?.error || err.message));
+    } finally { setReindexing(false); }
+  };
 
   const loadGlobalTemplates = () => refTemplatesAPI.list({ is_global: 1 }).then(r => setGlobalTemplates(r.data));
 
@@ -303,59 +351,167 @@ export default function Settings() {
 
       {/* ── My Profile ── */}
       {tab === 'My Profile' && (
-        <div className="space-y-4" style={{ maxWidth: 480 }}>
-          <div className="card" style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--cyan-dim)', border: '1px solid var(--border-hi)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"DM Mono",monospace', fontSize: 18, color: 'var(--cyan)', fontWeight: 600, flexShrink: 0 }}>
-                {currentUser.name?.charAt(0).toUpperCase() || '?'}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+
+          {/* Left: identity + change password */}
+          <div className="space-y-4">
+            <div className="card" style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--cyan-dim)', border: '1px solid var(--border-hi)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"DM Mono",monospace', fontSize: 18, color: 'var(--cyan)', fontWeight: 600, flexShrink: 0 }}>
+                  {currentUser.name?.charAt(0).toUpperCase() || '?'}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--t1)' }}>{currentUser.name || 'Unknown'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--t3)', fontFamily: '"DM Mono",monospace' }}>{currentUser.email}</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--t1)' }}>{currentUser.name || 'Unknown'}</div>
-                <div style={{ fontSize: 12, color: 'var(--t3)', fontFamily: '"DM Mono",monospace' }}>{currentUser.email}</div>
-              </div>
+
+              <h3 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--t1)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <KeyRound className="w-4 h-4" style={{ color: 'var(--cyan)' }} /> Change Password
+              </h3>
+
+              {pwMsg && (
+                <div style={{
+                  padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13,
+                  background: pwMsg.type === 'success' ? 'var(--green-dim)' : 'var(--red-dim)',
+                  border: `1px solid ${pwMsg.type === 'success' ? 'rgba(61,214,140,0.3)' : 'rgba(255,107,107,0.3)'}`,
+                  color: pwMsg.type === 'success' ? 'var(--green)' : 'var(--red)',
+                }}>{pwMsg.text}</div>
+              )}
+
+              <form onSubmit={async (e) => {
+                e.preventDefault(); setPwMsg(null);
+                if (pwForm.new_password !== pwForm.confirm_password) { setPwMsg({ type: 'error', text: 'New passwords do not match.' }); return; }
+                if (pwForm.new_password.length < 8) { setPwMsg({ type: 'error', text: 'New password must be at least 8 characters.' }); return; }
+                setSaving(true);
+                try {
+                  await authAPI.changePassword({ current_password: pwForm.current_password, new_password: pwForm.new_password });
+                  setPwMsg({ type: 'success', text: 'Password changed successfully.' });
+                  setPwForm({ current_password: '', new_password: '', confirm_password: '' });
+                } catch (err) {
+                  setPwMsg({ type: 'error', text: err.response?.data?.error || 'Failed to change password.' });
+                } finally { setSaving(false); }
+              }} className="space-y-3">
+                <div><label className="label">Current Password *</label><input className="input" type="password" required value={pwForm.current_password} onChange={e => setPwForm(p => ({ ...p, current_password: e.target.value }))} /></div>
+                <div><label className="label">New Password *</label><input className="input" type="password" required value={pwForm.new_password} onChange={e => setPwForm(p => ({ ...p, new_password: e.target.value }))} placeholder="Min. 8 characters" /></div>
+                <div><label className="label">Confirm New Password *</label><input className="input" type="password" required value={pwForm.confirm_password} onChange={e => setPwForm(p => ({ ...p, confirm_password: e.target.value }))} /></div>
+                <div style={{ paddingTop: 4 }}>
+                  <button type="submit" disabled={saving} className="btn-primary text-sm">{saving ? 'Saving…' : 'Update Password'}</button>
+                </div>
+              </form>
             </div>
 
-            <h3 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--t1)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <KeyRound className="w-4 h-4" style={{ color: 'var(--cyan)' }} /> Change Password
-            </h3>
-
-            {pwMsg && (
-              <div style={{
-                padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13,
-                background: pwMsg.type === 'success' ? 'var(--green-dim)' : 'var(--red-dim)',
-                border: `1px solid ${pwMsg.type === 'success' ? 'rgba(61,214,140,0.3)' : 'rgba(255,107,107,0.3)'}`,
-                color: pwMsg.type === 'success' ? 'var(--green)' : 'var(--red)',
-              }}>{pwMsg.text}</div>
-            )}
-
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              setPwMsg(null);
-              if (pwForm.new_password !== pwForm.confirm_password) {
-                setPwMsg({ type: 'error', text: 'New passwords do not match.' });
-                return;
-              }
-              if (pwForm.new_password.length < 8) {
-                setPwMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
-                return;
-              }
-              setSaving(true);
-              try {
-                await authAPI.changePassword({ current_password: pwForm.current_password, new_password: pwForm.new_password });
-                setPwMsg({ type: 'success', text: 'Password changed successfully.' });
-                setPwForm({ current_password: '', new_password: '', confirm_password: '' });
-              } catch (err) {
-                setPwMsg({ type: 'error', text: err.response?.data?.error || 'Failed to change password.' });
-              } finally { setSaving(false); }
-            }} className="space-y-3">
-              <div><label className="label">Current Password *</label><input className="input" type="password" required value={pwForm.current_password} onChange={e => setPwForm(p => ({ ...p, current_password: e.target.value }))} /></div>
-              <div><label className="label">New Password *</label><input className="input" type="password" required value={pwForm.new_password} onChange={e => setPwForm(p => ({ ...p, new_password: e.target.value }))} placeholder="Min. 8 characters" /></div>
-              <div><label className="label">Confirm New Password *</label><input className="input" type="password" required value={pwForm.confirm_password} onChange={e => setPwForm(p => ({ ...p, confirm_password: e.target.value }))} /></div>
-              <div style={{ paddingTop: 4 }}>
-                <button type="submit" disabled={saving} className="btn-primary text-sm">{saving ? 'Saving…' : 'Update Password'}</button>
+            {/* Context status */}
+            {contextStatus && (
+              <div className="card" style={{ padding: '16px 20px' }}>
+                <h3 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 700, fontSize: 13, color: 'var(--t1)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Cpu className="w-4 h-4" style={{ color: 'var(--cyan)' }} /> AI Context Index
+                </h3>
+                <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 10 }}>
+                  Engine: <span style={{ color: 'var(--cyan)', fontFamily: '"DM Mono",monospace' }}>{contextStatus.engine}</span>
+                  {contextStatus.engine === 'tfidf' && <span style={{ marginLeft: 8, color: 'var(--t3)', fontStyle: 'italic' }}>(set VOYAGE_API_KEY for neural embeddings)</span>}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                  {(contextStatus.indexed || []).map(row => (
+                    <span key={row.entity_type} className="badge badge-gray">
+                      {row.entity_type}: {row.count}
+                    </span>
+                  ))}
+                  {(!contextStatus.indexed || contextStatus.indexed.length === 0) && (
+                    <span style={{ color: 'var(--t3)', fontSize: 12 }}>No documents indexed yet.</span>
+                  )}
+                </div>
+                <button onClick={handleReindex} disabled={reindexing} className="btn-secondary text-sm">
+                  {reindexing ? 'Indexing…' : 'Re-index All Platform Data'}
+                </button>
               </div>
-            </form>
+            )}
           </div>
+
+          {/* Right: Skills */}
+          <div className="card" style={{ padding: '20px 24px' }}>
+            <h3 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--t1)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ShieldCheck className="w-4 h-4" style={{ color: 'var(--cyan)' }} /> My Skills
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 16 }}>
+              The AI assistant uses your skill profile to tailor answer depth and terminology. Click a skill chip to cycle its level.
+            </p>
+
+            {/* Current skills */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16, minHeight: 32 }}>
+              {mySkills.length === 0 && <span style={{ color: 'var(--t3)', fontSize: 12, fontStyle: 'italic' }}>No skills added yet.</span>}
+              {mySkills.map(skill => (
+                <div key={skill.id} style={{ display: 'flex', alignItems: 'center', gap: 0, borderRadius: 20, overflow: 'hidden', border: '1px solid var(--border-hi)' }}>
+                  <button
+                    onClick={() => handleCycleLevel(skill)}
+                    title="Click to change level"
+                    style={{
+                      padding: '4px 10px', fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                      background: skill.skill_level === 'Expert' ? 'var(--green-dim)' : skill.skill_level === 'Intermediate' ? 'var(--cyan-dim)' : 'var(--bg3)',
+                      color: skill.skill_level === 'Expert' ? 'var(--green)' : skill.skill_level === 'Intermediate' ? 'var(--cyan)' : 'var(--t3)',
+                      border: 'none', borderRight: '1px solid var(--border)',
+                    }}>
+                    {skill.skill_name}
+                    <span style={{ marginLeft: 4, opacity: 0.7, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{skill.skill_level[0]}</span>
+                  </button>
+                  <button onClick={() => handleRemoveSkill(skill.id)} style={{ padding: '4px 6px', background: 'var(--bg3)', border: 'none', cursor: 'pointer', color: 'var(--t3)', lineHeight: 1 }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add skill */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                <input
+                  className="input"
+                  style={{ flex: 1, fontSize: 12 }}
+                  placeholder="Type or pick a skill…"
+                  value={skillSearch || newSkill.skill_name}
+                  onChange={e => { setSkillSearch(e.target.value); setNewSkill(p => ({ ...p, skill_name: e.target.value })); }}
+                />
+                <select className="input" style={{ width: 110, fontSize: 12 }} value={newSkill.skill_level} onChange={e => setNewSkill(p => ({ ...p, skill_level: e.target.value }))}>
+                  {['Beginner', 'Intermediate', 'Expert'].map(l => <option key={l}>{l}</option>)}
+                </select>
+                <button onClick={() => newSkill.skill_name.trim() && handleAddSkill(newSkill.skill_name.trim())} className="btn-primary text-sm" style={{ flexShrink: 0 }}>
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Catalog browse */}
+              <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+                {catalog
+                  .map(cat => ({
+                    ...cat,
+                    skills: cat.skills.filter(s =>
+                      (!skillSearch || s.toLowerCase().includes(skillSearch.toLowerCase())) &&
+                      !mySkills.some(ms => ms.skill_name === s)
+                    )
+                  }))
+                  .filter(cat => cat.skills.length > 0)
+                  .map(cat => (
+                    <div key={cat.category} style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 10, fontFamily: '"DM Mono",monospace', color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{cat.category}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {cat.skills.map(s => (
+                          <button key={s} onClick={() => handleAddSkill(s, newSkill.skill_level)}
+                            style={{ fontSize: 11, padding: '3px 9px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--t2)', cursor: 'pointer' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t2)'; }}>
+                            + {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
+
         </div>
       )}
 

@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const db = require('../config/database');
 const XLSX = require('xlsx');
+const { index } = require('../services/vectorService');
 
 const router = express.Router();
 
@@ -66,12 +67,17 @@ router.post('/', (req, res) => {
   const { name, description, feature_type, api_sub_type, priority } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
+  const ftype = feature_type || 'Functional';
   const result = db.prepare(`
     INSERT INTO features (name, description, feature_type, api_sub_type, priority, status, created_by)
     VALUES (?, ?, ?, ?, ?, 'Draft', ?)
-  `).run(name, description || '', feature_type || 'Functional', api_sub_type || 'Both', priority || 'P2', req.user.id);
+  `).run(name, description || '', ftype, api_sub_type || 'Both', priority || 'P2', req.user.id);
 
-  res.status(201).json(db.prepare('SELECT * FROM features WHERE id = ?').get(result.lastInsertRowid));
+  const created = db.prepare('SELECT * FROM features WHERE id = ?').get(result.lastInsertRowid);
+  // Auto-index for RAG (non-blocking)
+  index('Feature', created.id, `${name} ${description || ''} ${ftype} ${priority || 'P2'}`,
+    { name, type: ftype, priority: priority || 'P2', status: 'Draft' }).catch(() => {});
+  res.status(201).json(created);
 });
 
 // PUT /features/:id
@@ -88,7 +94,11 @@ router.put('/:id', (req, res) => {
     WHERE id = ?
   `).run(name, description, feature_type, api_sub_type, priority, status, req.params.id);
 
-  res.json(db.prepare('SELECT * FROM features WHERE id = ?').get(req.params.id));
+  const updated = db.prepare('SELECT * FROM features WHERE id = ?').get(req.params.id);
+  // Re-index after update (non-blocking)
+  index('Feature', updated.id, `${updated.name} ${updated.description || ''} ${updated.feature_type} ${updated.priority}`,
+    { name: updated.name, type: updated.feature_type, priority: updated.priority, status: updated.status }).catch(() => {});
+  res.json(updated);
 });
 
 // DELETE /features/:id

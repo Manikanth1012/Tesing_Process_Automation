@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../config/database');
+const { index } = require('../services/vectorService');
 
 const router = express.Router();
 
@@ -49,17 +50,23 @@ router.post('/', (req, res) => {
   const { feature_id, title, description, test_type, priority, steps, expected_result, tags, rf_keywords_hint } = req.body;
   if (!feature_id || !title) return res.status(400).json({ error: 'feature_id and title required' });
 
+  const ttype = test_type || 'Functional';
   const result = db.prepare(`
     INSERT INTO test_cases (feature_id, title, description, test_type, priority, steps, expected_result, tags, rf_keywords_hint, created_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    feature_id, title, description || '', test_type || 'Functional', priority || 'P2',
+    feature_id, title, description || '', ttype, priority || 'P2',
     JSON.stringify(steps || []), expected_result || '',
     JSON.stringify(tags || []), JSON.stringify(rf_keywords_hint || []),
     req.user.id
   );
 
-  res.status(201).json(db.prepare('SELECT * FROM test_cases WHERE id = ?').get(result.lastInsertRowid));
+  const created = db.prepare('SELECT * FROM test_cases WHERE id = ?').get(result.lastInsertRowid);
+  // Auto-index for RAG
+  const feat = db.prepare('SELECT name FROM features WHERE id = ?').get(feature_id);
+  index('TestCase', created.id, `${title} ${description || ''} ${ttype} ${priority || 'P2'} ${feat?.name || ''}`,
+    { title, type: ttype, priority: priority || 'P2', status: 'Draft', feature: feat?.name }).catch(() => {});
+  res.status(201).json(created);
 });
 
 router.put('/:id', (req, res) => {

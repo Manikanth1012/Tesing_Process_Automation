@@ -23,6 +23,7 @@ const refTemplatesRouter = require('./routes/referenceTemplates');
 const projectsRouter = require('./routes/projects');
 const usersRouter = require('./routes/users');
 const assistantRouter = require('./routes/assistant');
+const skillsRouter    = require('./routes/skills');
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/v1/ref-templates', refTemplatesRouter);
 app.use('/api/v1/projects', projectsRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/assistant', assistantRouter);
+app.use('/api/v1/skills', skillsRouter);
 
 app.use(notFound);
 app.use(errorHandler);

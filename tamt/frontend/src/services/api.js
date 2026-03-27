@@ -168,6 +168,21 @@ export const authAPI = {
   changePassword: (payload) => api.post('/auth/change-password', payload),
 };
 
+// ─── Skills ────────────────────────────────────────────────────────────────────
+export const skillsAPI = {
+  getMySkills: ()              => api.get('/skills/me'),
+  addSkill:    (payload)       => api.post('/skills/me', payload),
+  updateSkill: (id, payload)   => api.put(`/skills/me/${id}`, payload),
+  removeSkill: (id)            => api.delete(`/skills/me/${id}`),
+  getCatalog:  ()              => api.get('/skills/catalog'),
+};
+
+// ─── Assistant context ─────────────────────────────────────────────────────────
+export const assistantContextAPI = {
+  status:  () => api.get('/assistant/context-status'),
+  reindex: () => api.post('/assistant/reindex'),
+};
+
 // ─── XLSX Export helpers ────────────────────────────────────────────────────────
 // These trigger a file download by navigating directly to the endpoint.
 export function downloadXlsx(path) {
