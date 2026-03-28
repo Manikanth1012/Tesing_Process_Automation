@@ -20,7 +20,9 @@ export default function Projects() {
 
   const load = () => {
     setLoading(true);
-    projectsAPI.list().then(r => { setProjects(r.data); setLoading(false); });
+    projectsAPI.list()
+      .then(r => { setProjects(r.data); setLoading(false); })
+      .catch(err => { console.error('[Projects]', err.message); setLoading(false); });
   };
   useEffect(load, []);
 

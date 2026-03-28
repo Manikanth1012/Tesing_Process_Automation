@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Trash2, Upload, FileText, Plus, UserPlus, Edit2, X, ShieldCheck, KeyRound, Cpu, ChevronDown } from 'lucide-react';
-import { environmentsAPI, agentsAPI, refTemplatesAPI, usersAPI, authAPI, skillsAPI, assistantContextAPI } from '../services/api.js';
+import { environmentsAPI, agentsAPI, refTemplatesAPI, usersAPI, authAPI, skillsAPI, assistantContextAPI, configAPI, permissionsAPI } from '../services/api.js';
 import Modal from '../components/common/Modal.jsx';
 
 const TEMPLATE_TYPES = ['FUNCTIONAL_TC', 'GUI_TC', 'API_SPEC', 'SWAGGER'];
@@ -10,7 +10,7 @@ const TEMPLATE_TYPE_LABELS = {
   API_SPEC: 'API Specification',
   SWAGGER: 'Swagger / OpenAPI Contract',
 };
-const TABS = ['Environments', 'Users & Roles', 'Global Templates', 'Agent Logs', 'My Profile'];
+const TABS = ['Environments', 'Users & Roles', 'Global Templates', 'Agent Logs', 'My Profile', 'Integrations', 'Roles & Permissions'];
 const USER_ROLES = ['QA_ENGINEER', 'QA_LEAD', 'DEVELOPER', 'MANAGER', 'ADMIN'];
 const SYSTEM_ROLES = ['User', 'Admin', 'SuperAdmin'];
 
@@ -72,6 +72,17 @@ export default function Settings() {
   const [contextStatus, setContextStatus] = useState(null);
   const [reindexing, setReindexing] = useState(false);
 
+  // Integrations tab
+  const [intConfig, setIntConfig] = useState({});
+  const [intSaving, setIntSaving] = useState(false);
+  const [intMsg, setIntMsg] = useState(null);
+
+  // Roles & Permissions tab
+  const [permMatrix, setPermMatrix] = useState({});
+  const [allPermissions, setAllPermissions] = useState([]);
+  const [allRoles, setAllRoles] = useState([]);
+  const [permLoading, setPermLoading] = useState(false);
+
   useEffect(() => {
     if (tab === 'Environments') environmentsAPI.list().then(r => setEnvironments(r.data));
     else if (tab === 'Agent Logs') agentsAPI.getHistory({ limit: 50 }).then(r => setAgentLogs(r.data));
@@ -81,6 +92,21 @@ export default function Settings() {
       skillsAPI.getMySkills().then(r => setMySkills(r.data)).catch(() => {});
       skillsAPI.getCatalog().then(r => setCatalog(r.data)).catch(() => {});
       assistantContextAPI.status().then(r => setContextStatus(r.data)).catch(() => {});
+    }
+    else if (tab === 'Integrations') {
+      configAPI.getAll().then(r => {
+        const map = {};
+        (r.data || []).forEach(row => { map[row.key] = row.value; });
+        setIntConfig(map);
+      }).catch(() => {});
+    }
+    else if (tab === 'Roles & Permissions') {
+      setPermLoading(true);
+      permissionsAPI.get().then(r => {
+        setPermMatrix(r.data.matrix || {});
+        setAllPermissions(r.data.permissions || []);
+        setAllRoles(r.data.roles || []);
+      }).catch(() => {}).finally(() => setPermLoading(false));
     }
   }, [tab]);
 
@@ -116,6 +142,30 @@ export default function Settings() {
     } catch (err) {
       alert('Re-index failed: ' + (err.response?.data?.error || err.message));
     } finally { setReindexing(false); }
+  };
+
+  const handleSaveIntegrations = async (e) => {
+    e.preventDefault();
+    setIntSaving(true); setIntMsg(null);
+    try {
+      await configAPI.update(intConfig);
+      setIntMsg({ type: 'success', text: 'Configuration saved.' });
+    } catch (err) {
+      setIntMsg({ type: 'error', text: err.response?.data?.error || 'Failed to save.' });
+    } finally { setIntSaving(false); }
+  };
+
+  const handleTogglePerm = async (role, permission, current) => {
+    const allowed = !current;
+    try {
+      await permissionsAPI.update({ role, permission, allowed });
+      setPermMatrix(prev => ({
+        ...prev,
+        [role]: { ...(prev[role] || {}), [permission]: allowed },
+      }));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update permission.');
+    }
   };
 
   const loadGlobalTemplates = () => refTemplatesAPI.list({ is_global: 1 }).then(r => setGlobalTemplates(r.data));
@@ -512,6 +562,158 @@ export default function Settings() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* ── Integrations ── */}
+      {tab === 'Integrations' && (
+        <div style={{ maxWidth: 680 }}>
+          <p style={{ color: 'var(--t3)', fontSize: 13, marginBottom: 20 }}>
+            Configure LLM and vector store credentials. Secrets are stored encrypted in the platform database and never exposed in full after saving.
+          </p>
+          {intMsg && (
+            <div style={{
+              padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13,
+              background: intMsg.type === 'success' ? 'var(--green-dim)' : 'var(--red-dim)',
+              border: `1px solid ${intMsg.type === 'success' ? 'rgba(61,214,140,0.3)' : 'rgba(255,107,107,0.3)'}`,
+              color: intMsg.type === 'success' ? 'var(--green)' : 'var(--red)',
+            }}>{intMsg.text}</div>
+          )}
+          <form onSubmit={handleSaveIntegrations} className="space-y-4">
+
+            {/* LLM section */}
+            <div className="card" style={{ padding: '20px 24px' }}>
+              <h3 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--t1)', marginBottom: 16 }}>
+                Language Model (Claude / Anthropic)
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Anthropic API Key</label>
+                  <input className="input" type="password" placeholder="sk-ant-…  (leave blank to keep existing)"
+                    value={intConfig.llm_api_key || ''}
+                    onChange={e => setIntConfig(p => ({ ...p, llm_api_key: e.target.value }))} />
+                  <p style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>Used for AI assistant chat and agent runs.</p>
+                </div>
+                <div>
+                  <label className="label">Claude Model</label>
+                  <input className="input" placeholder="claude-sonnet-4-6"
+                    value={intConfig.llm_model || ''}
+                    onChange={e => setIntConfig(p => ({ ...p, llm_model: e.target.value }))} />
+                  <p style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>Latest: claude-opus-4-6 · claude-sonnet-4-6 · claude-haiku-4-5-20251001</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Vector store section */}
+            <div className="card" style={{ padding: '20px 24px' }}>
+              <h3 style={{ fontFamily: '"Syne",sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--t1)', marginBottom: 16 }}>
+                Vector Store / Embeddings
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Embedding Engine</label>
+                  <select className="input" value={intConfig.vector_engine || 'tfidf'}
+                    onChange={e => setIntConfig(p => ({ ...p, vector_engine: e.target.value }))}>
+                    <option value="tfidf">TF-IDF (built-in, no API key needed)</option>
+                    <option value="voyage">Voyage AI (neural embeddings)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Voyage AI API Key</label>
+                  <input className="input" type="password" placeholder="pa-… (required for Voyage engine)"
+                    value={intConfig.voyage_api_key || ''}
+                    onChange={e => setIntConfig(p => ({ ...p, voyage_api_key: e.target.value }))} />
+                  <p style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>Only used when engine is set to "Voyage AI".</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="label">Top-K Results</label>
+                    <input className="input" type="number" min={1} max={20}
+                      value={intConfig.vector_top_k || '5'}
+                      onChange={e => setIntConfig(p => ({ ...p, vector_top_k: e.target.value }))} />
+                    <p style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>Max context chunks retrieved per query.</p>
+                  </div>
+                  <div>
+                    <label className="label">Chat Max History</label>
+                    <input className="input" type="number" min={2} max={50}
+                      value={intConfig.chat_max_history || '20'}
+                      onChange={e => setIntConfig(p => ({ ...p, chat_max_history: e.target.value }))} />
+                    <p style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>Number of messages loaded per session.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="submit" disabled={intSaving} className="btn-primary">
+                {intSaving ? 'Saving…' : 'Save Configuration'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Roles & Permissions ── */}
+      {tab === 'Roles & Permissions' && (
+        <div>
+          <p style={{ color: 'var(--t3)', fontSize: 13, marginBottom: 20 }}>
+            Configure what each job role can do within the platform. ADMIN always retains full access and cannot be restricted.
+          </p>
+          {permLoading && <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--t3)' }}>Loading…</div>}
+          {!permLoading && allPermissions.length > 0 && (
+            <div className="card" style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontFamily: '"DM Mono",monospace', fontSize: 10, color: 'var(--t3)', letterSpacing: '0.08em', textTransform: 'uppercase', width: 240 }}>Permission</th>
+                    {allRoles.map(role => (
+                      <th key={role} style={{ padding: '12px 12px', textAlign: 'center', fontFamily: '"DM Mono",monospace', fontSize: 10, color: role === 'ADMIN' ? 'var(--cyan)' : 'var(--t3)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        {role.replace('_', ' ')}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allPermissions.map(perm => (
+                    <tr key={perm.key} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--t1)' }}>{perm.label}</div>
+                        {perm.description && <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>{perm.description}</div>}
+                      </td>
+                      {allRoles.map(role => {
+                        const allowed = permMatrix[role]?.[perm.key] ?? false;
+                        const isLocked = role === 'ADMIN'; // admin always has all
+                        return (
+                          <td key={role} style={{ padding: '12px 12px', textAlign: 'center' }}>
+                            <button
+                              onClick={() => !isLocked && handleTogglePerm(role, perm.key, allowed)}
+                              disabled={isLocked}
+                              style={{
+                                width: 36, height: 20, borderRadius: 10, border: 'none', cursor: isLocked ? 'default' : 'pointer',
+                                background: allowed ? 'var(--cyan)' : 'var(--bg3)',
+                                border: `1px solid ${allowed ? 'transparent' : 'var(--border)'}`,
+                                position: 'relative', transition: 'background 0.2s',
+                                opacity: isLocked ? 0.5 : 1,
+                              }}
+                              title={isLocked ? 'ADMIN always has full access' : (allowed ? 'Click to revoke' : 'Click to grant')}
+                            >
+                              <span style={{
+                                position: 'absolute', top: 2,
+                                left: allowed ? 'calc(100% - 18px)' : 2,
+                                width: 14, height: 14, borderRadius: '50%',
+                                background: allowed ? 'var(--bg)' : 'var(--t3)',
+                                transition: 'left 0.2s',
+                              }} />
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

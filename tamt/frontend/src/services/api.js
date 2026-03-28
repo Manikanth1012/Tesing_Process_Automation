@@ -160,7 +160,23 @@ export const usersAPI = {
 
 // ─── AI Assistant ──────────────────────────────────────────────────────────────
 export const assistantAPI = {
-  chat: (message, history = []) => api.post('/assistant/chat', { message, history }),
+  chat:           (payload)  => api.post('/assistant/chat', payload),
+  getSessions:    ()         => api.get('/assistant/sessions'),
+  createSession:  (title)    => api.post('/assistant/sessions', { title }),
+  getSession:     (id)       => api.get(`/assistant/sessions/${id}`),
+  deleteSession:  (id)       => api.delete(`/assistant/sessions/${id}`),
+};
+
+// ─── Platform config & permissions ────────────────────────────────────────────
+export const configAPI = {
+  getPublic: ()      => api.get('/config/public'),
+  getAll:    ()      => api.get('/config'),
+  update:    (data)  => api.put('/config', data),
+};
+
+export const permissionsAPI = {
+  get:    ()     => api.get('/permissions'),
+  update: (data) => api.put('/permissions', data),
 };
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────

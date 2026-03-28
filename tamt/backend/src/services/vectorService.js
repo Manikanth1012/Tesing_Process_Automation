@@ -10,8 +10,16 @@
 const db     = require('../config/database');
 const axios  = require('axios');
 
-const VOYAGE_API_KEY = process.env.VOYAGE_API_KEY;
-const VOYAGE_MODEL   = 'voyage-3-lite'; // small, fast, low cost
+const VOYAGE_MODEL = 'voyage-3-lite';
+
+// Resolve voyage key at call-time (env var OR platform_config table)
+function getVoyageKey() {
+  if (process.env.VOYAGE_API_KEY) return process.env.VOYAGE_API_KEY;
+  try {
+    const row = db.prepare("SELECT value FROM platform_config WHERE key = 'voyage_api_key'").get();
+    return row?.value || '';
+  } catch { return ''; }
+}
 
 // ─── Stop words ──────────────────────────────────────────────────────────────
 const STOP_WORDS = new Set([
@@ -70,11 +78,11 @@ function buildIdfWeights(rows) {
 }
 
 // ─── Voyage AI real embeddings (optional) ─────────────────────────────────────
-async function voyageEmbed(texts) {
+async function voyageEmbed(texts, key) {
   const res = await axios.post(
     'https://api.voyageai.com/v1/embeddings',
     { model: VOYAGE_MODEL, input: texts },
-    { headers: { Authorization: `Bearer ${VOYAGE_API_KEY}`, 'Content-Type': 'application/json' } }
+    { headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' } }
   );
   return res.data.data.map(d => d.embedding);
 }
@@ -93,9 +101,10 @@ async function index(entityType, entityId, text, metadata = {}) {
     const tokens  = tokenize(text);
     const freq    = termFreq(tokens);
 
-    if (VOYAGE_API_KEY) {
+    const voyageKey = getVoyageKey();
+    if (voyageKey) {
       // Store real embedding vector alongside TF for hybrid retrieval
-      const [vec] = await voyageEmbed([text]);
+      const [vec] = await voyageEmbed([text], voyageKey);
       db.prepare(`
         INSERT INTO context_embeddings (entity_type, entity_id, text_content, term_freq, doc_length, metadata, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -139,9 +148,10 @@ async function search(queryText, topK = 5, entityTypes) {
 
     if (rows.length === 0) return [];
 
-    if (VOYAGE_API_KEY) {
+    const voyageKey = getVoyageKey();
+    if (voyageKey) {
       // Voyage vector similarity
-      const [qVec] = await voyageEmbed([queryText]);
+      const [qVec] = await voyageEmbed([queryText], voyageKey);
       const scored = rows.map(row => {
         const meta = JSON.parse(row.metadata || '{}');
         const docVec = meta._vec;

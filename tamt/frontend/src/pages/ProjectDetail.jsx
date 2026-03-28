@@ -24,11 +24,13 @@ export default function ProjectDetail() {
   const [editForm, setEditForm] = useState({});
 
   const load = () => {
-    projectsAPI.get(id).then(r => {
-      setProject(r.data);
-      setEditForm({ name: r.data.name, description: r.data.description, status: r.data.status });
-      setLoading(false);
-    });
+    projectsAPI.get(id)
+      .then(r => {
+        setProject(r.data);
+        setEditForm({ name: r.data.name, description: r.data.description, status: r.data.status });
+        setLoading(false);
+      })
+      .catch(err => { console.error('[ProjectDetail]', err.message); setLoading(false); });
   };
   useEffect(load, [id]);
 

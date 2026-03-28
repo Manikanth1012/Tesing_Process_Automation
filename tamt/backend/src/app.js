@@ -24,6 +24,8 @@ const projectsRouter = require('./routes/projects');
 const usersRouter = require('./routes/users');
 const assistantRouter = require('./routes/assistant');
 const skillsRouter    = require('./routes/skills');
+const configRouter      = require('./routes/config');
+const permissionsRouter = require('./routes/permissions');
 
 const app = express();
 
@@ -65,6 +67,8 @@ app.use('/api/v1/projects', projectsRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/assistant', assistantRouter);
 app.use('/api/v1/skills', skillsRouter);
+app.use('/api/v1/config', configRouter);
+app.use('/api/v1/permissions', permissionsRouter);
 
 app.use(notFound);
 app.use(errorHandler);
