@@ -16,6 +16,8 @@ import TestRunDetail from './pages/TestRunDetail.jsx';
 import Defects from './pages/Defects.jsx';
 import Reports from './pages/Reports.jsx';
 import Settings from './pages/Settings.jsx';
+import ProcessFlow from './pages/ProcessFlow.jsx';
+import MemoryArchitecture from './pages/MemoryArchitecture.jsx';
 
 // Auth guard — redirects to /login if no token stored
 function RequireAuth({ children }) {
@@ -53,6 +55,8 @@ export default function App() {
                 <Route path="/defects" element={<Defects />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/process-flow" element={<ProcessFlow />} />
+                <Route path="/memory-arch" element={<MemoryArchitecture />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Layout>

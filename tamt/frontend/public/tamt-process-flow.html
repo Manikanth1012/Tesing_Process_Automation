@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TAMT — Test Automation Pipeline Flow &amp; Agent I/O</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #070c18;
+      color: #e2e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .hdr {
+      background: linear-gradient(135deg, #0a1628 0%, #0c1a30 50%, #0f0a1e 100%);
+      border-bottom: 1px solid #1e293b;
+      padding: 22px 36px;
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .hdr h1 { font-size: 19px; font-weight: 800; color: #f1f5f9; }
+    .hdr p  { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+    .hdr-badges { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+    .hbadge {
+      padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 700;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .hbadge:hover { opacity: .75; }
+
+    #flow-canvas {
+      display: block;
+      cursor: default;
+    }
+
+    #detail-panel {
+      display: none;
+      margin: 0 32px 20px;
+      background: #0d1117;
+      border: 1.5px solid #1e293b;
+      border-radius: 14px;
+      overflow: hidden;
+      animation: slideIn .2s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .dp-header {
+      padding: 13px 18px;
+      display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .dp-num {
+      width: 36px; height: 36px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px; color: white; flex-shrink: 0;
+    }
+    .dp-title { font-size: 15px; font-weight: 800; }
+    .dp-sub   { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+    .dp-badge { margin-left: auto; padding: 3px 10px; border-radius: 999px;
+                font-size: 10px; font-weight: 700; flex-shrink: 0; }
+    .dp-close {
+      margin-left: 10px; width: 26px; height: 26px; border-radius: 50%;
+      background: #1e293b; border: none; color: #94a3b8; cursor: pointer;
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background .15s;
+    }
+    .dp-close:hover { background: #334155; color: #e2e8f0; }
+
+    .dp-body {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    }
+    .dp-col { padding: 14px 18px; }
+    .dp-col + .dp-col { border-left: 1px solid #1e293b; }
+    .dp-col-lbl {
+      font-size: 9px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .dp-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 11px; color: #94a3b8; margin-bottom: 7px; line-height: 1.55;
+    }
+    .dp-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .dp-tag {
+      display: inline-block; padding: 1px 6px; border-radius: 3px;
+      font-size: 9px; font-weight: 700; margin-left: 3px;
+    }
+
+    .react-strip {
+      border-top: 1px solid #1e293b;
+      padding: 9px 18px;
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .react-pill {
+      padding: 3px 10px; border-radius: 6px; font-size: 9px; font-weight: 700;
+      border: 1px solid;
+    }
+
+    .bottom-sections { padding: 0 32px 32px; }
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #475569; margin-bottom: 12px;
+    }
+    .divider { border: none; border-top: 1px solid #1a2233; margin: 28px 0; }
+
+    .ds-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .ds-card { border-radius: 10px; padding: 14px; border: 1px solid; }
+    .ds-title { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+    .ds-item  { font-size: 10px; color: #64748b; margin-bottom: 4px; display: flex; gap: 5px; align-items: flex-start; }
+    .ds-dot   { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+
+    .flow-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .flow-table th {
+      background: #0f1520; color: #64748b; font-size: 9px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      padding: 10px 12px; border-bottom: 1px solid #1e293b; text-align: left;
+    }
+    .flow-table td {
+      padding: 9px 12px; border-bottom: 1px solid #0f1520;
+      vertical-align: top; color: #94a3b8;
+    }
+    .flow-table tr:last-child td { border-bottom: none; }
+    .flow-table tr:hover td { background: #0f1520; }
+    .from-badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; }
+    .to-badge   { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; margin-left: 4px; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 420px; gap: 20px; align-items: start; }
+
+    .agents-box { background: #0f0a1e; border: 1.5px solid #7c3aed; border-radius: 14px; overflow: hidden; }
+    .agents-hdr { background: #1a1040; padding: 12px 16px; border-bottom: 1px solid #2d1f60; }
+    .agents-title { font-size: 13px; font-weight: 800; color: #c4b5fd; }
+    .agents-sub   { font-size: 10px; color: #7c6fcd; margin-top: 2px; }
+    .agents-list { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+    .agent-card { background: #12101e; border: 1px solid #2d2250; border-radius: 8px; padding: 10px 12px; }
+    .agent-name { font-size: 11px; font-weight: 700; color: #a78bfa; margin-bottom: 6px; }
+    .agent-io { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .agent-lbl { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 3px; }
+    .agent-item { font-size: 9px; color: #7c6fcd; display: flex; align-items: flex-start; gap: 4px; line-height: 1.5; }
+    .agent-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+    .hierarchy-box { background: #0a1020; border: 1.5px solid #0284c7; border-radius: 14px; overflow: hidden; }
+    .hierarchy-hdr { background: #0c1a30; padding: 12px 16px; border-bottom: 1px solid #1e3a5f; }
+    .hierarchy-title { font-size: 13px; font-weight: 800; color: #7dd3fc; }
+    .hierarchy-sub   { font-size: 10px; color: #4a7fa3; margin-top: 2px; }
+    .hierarchy-content { padding: 12px; }
+    .hierarchy-tree { font-size: 10px; color: #94a3b8; line-height: 1.8; font-family: 'Courier New', monospace; }
+    .hierarchy-tree .hl1 { color: #7dd3fc; font-weight: 700; }
+    .hierarchy-tree .hl2 { color: #60a5fa; font-weight: 700; }
+    .hierarchy-tree .hl3 { color: #a78bfa; font-weight: 700; }
+    .hierarchy-tree .hl4 { color: #fbbf24; }
+
+    .footer {
+      text-align: center; padding: 18px 36px; font-size: 11px;
+      color: #334155; border-top: 1px solid #1a2233;
+    }
+
+    #tooltip {
+      position: fixed; pointer-events: none;
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; padding: 6px 10px;
+      font-size: 10px; color: #e2e8f0;
+      z-index: 99; display: none; max-width: 220px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <h1>TAMT — Test Automation Pipeline Flow &amp; Agent I/O</h1>
+    <p>Interactive canvas — click any stage to see full input/output details · 7 AI Agents · Robot Framework Integration</p>
+    <div class="hdr-badges">
+      <span class="hbadge" style="background:#0c4a6e;color:#22d3ee;" onclick="selectNode('prereq')">Prerequisites Analysis</span>
+      <span class="hbadge" style="background:#1e3a5f;color:#60a5fa;" onclick="selectNode('testcase')">Test Case Generation</span>
+      <span class="hbadge" style="background:#1a1040;color:#c4b5fd;" onclick="selectNode('script')">Script Generation</span>
+      <span class="hbadge" style="background:#052e16;color:#4ade80;" onclick="selectNode('execution')">Test Execution</span>
+      <span class="hbadge" style="background:#1a0800;color:#fb923c;" onclick="selectNode('monitor')">Execution Monitoring</span>
+      <span class="hbadge" style="background:#7c2d12;color:#fca5a5;" onclick="selectNode('defect')">Defect Triage</span>
+      <span class="hbadge" style="background:#2a1500;color:#fbbf24;" onclick="selectNode('report')">Reporting</span>
+    </div>
+  </div>
+  <div style="text-align:right;font-size:11px;color:#475569;">
+    <div>7 AI Agents · Robot Framework</div>
+    <div style="margin-top:4px;">v1.3 · March 2026</div>
+    <div style="margin-top:6px;font-size:10px;color:#334155;">Click stages to explore</div>
+  </div>
+</div>
+
+<canvas id="flow-canvas"></canvas>
+
+<div id="detail-panel"></div>
+
+<div class="bottom-sections">
+
+  <div class="section-label">AI Agents &amp; Project Hierarchy</div>
+  <div class="two-col">
+
+    <div class="agents-box">
+      <div class="agents-hdr">
+        <div class="agents-title">🤖 7 AI Agents — Claude Powered</div>
+        <div class="agents-sub">All agents use Claude API · Real-time SSE streaming · Tool-based agentic loop</div>
+      </div>
+      <div class="agents-list">
+        <div class="agent-card">
+          <div class="agent-name">1. PREREQ_ANALYST</div>
+          <div class="agent-io">
+            <div>
+              <div class="agent-lbl" style="color:#3b82f6;">▼ INPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Feature type (API/Functional/GUI/Performance)</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Uploaded API contracts & templates</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Prerequisite checklist items</div>
+            </div>
+            <div>
+              <div class="agent-lbl" style="color:#93c5fd;">▲ OUTPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Readiness score (0-100)</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Blockers list with severity</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Action items for team</div>
+            </div>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-name">2. TESTCASE_GENERATOR</div>
+          <div class="agent-io">
+            <div>
+              <div class="agent-lbl" style="color:#3b82f6;">▼ INPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Feature description + type</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Reference templates (Functional/GUI TC)</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>API spec/Swagger (for API features)</div>
+            </div>
+            <div>
+              <div class="agent-lbl" style="color:#93c5fd;">▲ OUTPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Test cases with structured steps</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Expected results per case</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Robot Framework keyword hints</div>
+            </div>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-name">3. SCRIPT_GENERATOR</div>
+          <div class="agent-io">
+            <div>
+              <div class="agent-lbl" style="color:#3b82f6;">▼ INPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Test case with steps</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Feature type & API sub-type</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Script templates from DB</div>
+            </div>
+            <div>
+              <div class="agent-lbl" style="color:#93c5fd;">▲ OUTPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>.robot file with RF syntax</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Dry-run validation results</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Status: Draft/Ready/Approved</div>
+            </div>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-name">4. EXECUTION_MONITOR (Auto-triggered)</div>
+          <div class="agent-io">
+            <div>
+              <div class="agent-lbl" style="color:#3b82f6;">▼ INPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Test run results from output.xml</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Execution logs & timings</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Historical run data</div>
+            </div>
+            <div>
+              <div class="agent-lbl" style="color:#93c5fd;">▲ OUTPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Health score (0-100)</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Failure categorization</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Trend analysis & insights</div>
+            </div>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-name">5. DEFECT_TRIAGE</div>
+          <div class="agent-io">
+            <div>
+              <div class="agent-lbl" style="color:#3b82f6;">▼ INPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Failed test execution details</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Error logs & screenshots</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Test case context</div>
+            </div>
+            <div>
+              <div class="agent-lbl" style="color:#93c5fd;">▲ OUTPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Severity (Critical/High/Medium/Low)</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Steps to reproduce</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Duplicate detection + root cause</div>
+            </div>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-name">6. GAP_ANALYST</div>
+          <div class="agent-io">
+            <div>
+              <div class="agent-lbl" style="color:#3b82f6;">▼ INPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Test plan coverage data</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Feature requirements</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Execution results</div>
+            </div>
+            <div>
+              <div class="agent-lbl" style="color:#93c5fd;">▲ OUTPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Go/Conditional Go/No Go decision</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Gap list with risk assessment</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Remediation recommendations</div>
+            </div>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div class="agent-name">7. REPORT_NARRATIVE</div>
+          <div class="agent-io">
+            <div>
+              <div class="agent-lbl" style="color:#3b82f6;">▼ INPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Coverage metrics</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Execution summary data</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#3b82f6;"></div>Defect analysis</div>
+            </div>
+            <div>
+              <div class="agent-lbl" style="color:#93c5fd;">▲ OUTPUT</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Executive markdown summary</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Key insights & trends</div>
+              <div class="agent-item"><div class="agent-dot" style="background:#93c5fd;"></div>Risk areas highlighted</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="hierarchy-box">
+        <div class="hierarchy-hdr">
+          <div class="hierarchy-title">📊 Project Hierarchy</div>
+          <div class="hierarchy-sub">4-level structure from Projects to Test Runs</div>
+        </div>
+        <div class="hierarchy-content">
+          <div class="hierarchy-tree">
+<span class="hl1">Project</span> (e.g., PAYGW)
+  └── <span class="hl2">Test Plan</span> (Sprint/Release)
+        ├── <span class="hl3">Feature</span> (API/Functional/GUI/Performance)
+        │     ├── Prerequisites (checklist + readiness %)
+        │     ├── Reference Templates (specs, contracts)
+        │     └── <span class="hl4">Test Case</span>
+        │           ├── Steps (JSON structured)
+        │           ├── Expected Result
+        │           └── RF Script (.robot file)
+        │                 └── Test Run
+        │                       ├── Execution (per case)
+        │                       └── Defect (linked)
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#0f0a1e;border:1.5px solid #4c1d95;border-radius:12px;padding:14px;">
+        <div style="font-size:12px;font-weight:800;color:#c4b5fd;margin-bottom:10px;">🔄 REACT Loop — All Agents</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div style="background:#1a1040;border:1px solid #4c1d95;border-radius:7px;padding:9px 11px;">
+            <div style="font-size:10px;font-weight:700;color:#06b6d4;margin-bottom:3px;">PERCEIVE</div>
+            <div style="font-size:9px;color:#64748b;">Gather context from DB, uploaded files, and user input</div>
+          </div>
+          <div style="background:#1a1040;border:1px solid #4c1d95;border-radius:7px;padding:9px 11px;">
+            <div style="font-size:10px;font-weight:700;color:#8b5cf6;margin-bottom:3px;">REASON</div>
+            <div style="font-size:9px;color:#64748b;">Analyze data and plan next action using Claude's reasoning</div>
+          </div>
+          <div style="background:#1a1040;border:1px solid #4c1d95;border-radius:7px;padding:9px 11px;">
+            <div style="font-size:10px;font-weight:700;color:#10b981;margin-bottom:3px;">ACT</div>
+            <div style="font-size:9px;color:#64748b;">Execute tool calls (DB query, file parse, script generation)</div>
+          </div>
+          <div style="background:#1a1040;border:1px solid #4c1d95;border-radius:7px;padding:9px 11px;">
+            <div style="font-size:10px;font-weight:700;color:#f59e0b;margin-bottom:3px;">REFLECT</div>
+            <div style="font-size:9px;color:#64748b;">Validate output, stream to UI, persist suggestions for human review</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#0a1020;border:1.5px solid #0284c7;border-radius:12px;padding:14px;">
+        <div style="font-size:12px;font-weight:800;color:#7dd3fc;margin-bottom:10px;">🎯 Key Principles</div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:9px;color:#94a3b8;">
+          <div style="display:flex;gap:6px;"><span style="color:#4ade80;">✓</span> All agent suggestions require explicit Accept/Reject/Modify</div>
+          <div style="display:flex;gap:6px;"><span style="color:#4ade80;">✓</span> Live SSE streaming for real-time thinking visibility</div>
+          <div style="display:flex;gap:6px;"><span style="color:#4ade80;">✓</span> Readiness gate: ≥70% for test gen, 100% for script gen</div>
+          <div style="display:flex;gap:6px;"><span style="color:#4ade80;">✓</span> Dry-run validation before script approval</div>
+          <div style="display:flex;gap:6px;"><span style="color:#4ade80;">✓</span> EXECUTION_MONITOR auto-triggers on run completion</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="divider" />
+
+  <div class="section-label">Data Stores — What Gets Read/Written at Each Stage</div>
+  <div class="ds-grid">
+    <div class="ds-card" style="background:#0a1020;border-color:#0284c7;">
+      <div class="ds-title" style="color:#7dd3fc;">🗄 SQLite Database (tamt.db)</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#7dd3fc;"></div>projects · test_plans · features — hierarchy</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#7dd3fc;"></div>prerequisites — checklist items + completion %</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#7dd3fc;"></div>api_contracts · reference_templates — uploaded files</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#7dd3fc;"></div>test_cases — structured steps (JSON)</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#7dd3fc;"></div>robot_scripts — .robot metadata + versions</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#7dd3fc;"></div>test_runs · test_executions — results + timings</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#7dd3fc;"></div>defects — severity, priority, steps to reproduce</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#7dd3fc;"></div>agent_runs · agent_suggestions — AI history</div>
+    </div>
+    <div class="ds-card" style="background:#0f0a1e;border-color:#7c3aed;">
+      <div class="ds-title" style="color:#c4b5fd;">📁 File System Storage</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#c4b5fd;"></div>backend/scripts/ — generated .robot files (api/functional/gui/performance)</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#c4b5fd;"></div>backend/rf-results/ — output.xml, report.html per run</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#c4b5fd;"></div>backend/uploads/ — contracts, templates, screenshots</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#c4b5fd;"></div>python/requirements.txt — RF + SeleniumLibrary + Browser + Requests</div>
+    </div>
+    <div class="ds-card" style="background:#031a0a;border-color:#15803d;">
+      <div class="ds-title" style="color:#4ade80;">🤖 Anthropic Claude API</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#4ade80;"></div>Model: claude-sonnet-4-6 (all agents + assistant)</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#4ade80;"></div>Tools: DB query, file parse, script validate, defect analyze</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#4ade80;"></div>Streaming: SSE events (thinking, tool_call, tool_result, output, done)</div>
+      <div class="ds-item"><div class="ds-dot" style="background:#4ade80;"></div>Context: Live DB fetch at trigger time (no stale state)</div>
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="section-label">Stage-to-Stage Data Flow — How Data Moves Through the Pipeline</div>
+  <div style="border:1px solid #1e293b;border-radius:12px;overflow:hidden;">
+    <table class="flow-table">
+      <thead>
+        <tr>
+          <th>From Stage</th>
+          <th>Data / Artifact</th>
+          <th>To Stage</th>
+          <th>How It Passes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="from-badge" style="background:#0c4a6e;color:#22d3ee;">Prerequisites</span></td><td>readiness_score (0-100) + blocker list</td><td><span class="to-badge" style="background:#1e3a5f;color:#60a5fa;">Test Case Gen</span></td><td>PREREQ_ANALYST writes to features.readiness_score; TESTCASE_GENERATOR checks ≥70%</td></tr>
+        <tr><td><span class="from-badge" style="background:#1e3a5f;color:#60a5fa;">Test Case Gen</span></td><td>test_cases with steps (JSON) + RF keyword hints</td><td><span class="to-badge" style="background:#1a1040;color:#c4b5fd;">Script Gen</span></td><td>Written to test_cases table; SCRIPT_GENERATOR reads test_case.steps + feature context</td></tr>
+        <tr><td><span class="from-badge" style="background:#1a1040;color:#c4b5fd;">Script Gen</span></td><td>.robot file + dry-run validation result</td><td><span class="to-badge" style="background:#052e16;color:#4ade80;">Execution</span></td><td>Saved to backend/scripts/; robot_scripts.status='Approved' gates execution</td></tr>
+        <tr><td><span class="from-badge" style="background:#052e16;color:#4ade80;">Execution</span></td><td>output.xml + report.html + live stdout logs</td><td><span class="to-badge" style="background:#1a0800;color:#fb923c;">Monitor</span></td><td>rfService.parseRFResults() → test_executions; EXECUTION_MONITOR auto-fires</td></tr>
+        <tr><td><span class="from-badge" style="background:#1a0800;color:#fb923c;">Monitor</span></td><td>health_score + failure_categories + trend analysis</td><td><span class="to-badge" style="background:#7c2d12;color:#fca5a5;">Defect Triage</span></td><td>Stored in agent_suggestions; user clicks "Triage with AI" on failed execution</td></tr>
+        <tr><td><span class="from-badge" style="background:#7c2d12;color:#fca5a5;">Defect Triage</span></td><td>defect draft: severity, priority, steps, duplicate flag</td><td><span class="to-badge" style="background:#2a1500;color:#fbbf24;">Reports</span></td><td>Written to defects table; user accepts/modifies; defect_analysis report aggregates</td></tr>
+        <tr><td><span class="from-badge" style="background:#2a1500;color:#fbbf24;">Reports</span></td><td>Coverage %, Execution Summary, Defect Breakdown, AI Narrative</td><td><span class="to-badge" style="background:#0c4a6e;color:#22d3ee;">Stakeholders</span></td><td>XLSX export via SheetJS; REPORT_NARRATIVE generates markdown summary</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="footer">
+  TAMT — Test Automation Management Tool · v1.3 · March 2026 · Click stage nodes on canvas to explore I/O details
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+const STAGES = [
+  {
+    id: 'prereq',
+    label: '1',
+    title: 'Prerequisites Analysis',
+    sub: 'PREREQ_ANALYST Agent · Readiness validation before scripting',
+    badge: '⚡ Readiness',
+    color: '#0e7490', glow: '#22d3ee',
+    bg: '#051a20', border: '#0e7490',
+    titleColor: '#22d3ee',
+    inColor: '#22d3ee', outColor: '#67e8f9',
+    dotIn: '#22d3ee', dotOut: '#67e8f9',
+    inputs: [
+      'Feature type (API/Functional/GUI/Performance)',
+      'Uploaded API contracts (Swagger, OpenAPI)',
+      'Reference templates (Functional TC, GUI TC)',
+      'Prerequisite checklist items from DB',
+    ],
+    outputs: [
+      'Readiness score (0-100) → blocks if <70%',
+      'Blocker list with severity (Critical/High/Medium)',
+      'Action items for team (missing data, env issues)',
+      'AI analysis report with recommendations',
+    ],
+    react: ['PERCEIVE: Scan uploaded contracts, checklist completion','REASON: Evaluate each prerequisite against best practices','ACT: Calculate readiness score, identify blockers','REFLECT: Persist score to features.readiness_score, notify team'],
+    connector: 'readiness_score ≥70% → Enable Test Case Generation',
+  },
+  {
+    id: 'testcase',
+    label: '2',
+    title: 'Test Case Generation',
+    sub: 'TESTCASE_GENERATOR Agent · AI-powered test case creation',
+    badge: '📝 Test Cases',
+    color: '#1d4ed8', glow: '#60a5fa',
+    bg: '#050d20', border: '#1d4ed8',
+    titleColor: '#60a5fa',
+    inColor: '#60a5fa', outColor: '#93c5fd',
+    dotIn: '#3b82f6', dotOut: '#93c5fd',
+    inputs: [
+      'Feature description + type',
+      'Reference templates (functional/GUI TC docs)',
+      'API spec/Swagger for API features',
+      'Readiness score ≥70% gate check',
+    ],
+    outputs: [
+      'Test cases with structured steps (JSON)',
+      'Expected results per test case',
+      'Robot Framework keyword hints',
+      'Priority (P1/P2/P3) and type assignment',
+    ],
+    react: ['PERCEIVE: Read feature context + templates + API spec','REASON: Design test scenarios covering happy/edge/negative paths','ACT: Generate test_cases with steps as JSON array','REFLECT: Stream suggestions to UI for human approval'],
+    connector: 'test_cases (approved) → Script Generation input',
+  },
+  {
+    id: 'script',
+    label: '3',
+    title: 'Robot Framework Script Generation',
+    sub: 'SCRIPT_GENERATOR Agent · .robot file creation + dry-run validation',
+    badge: '🤖 RF Scripts',
+    color: '#6d28d9', glow: '#c4b5fd',
+    bg: '#120828', border: '#6d28d9',
+    titleColor: '#c4b5fd',
+    inColor: '#c4b5fd', outColor: '#ddd6fe',
+    dotIn: '#8b5cf6', dotOut: '#c4b5fd',
+    inputs: [
+      'Test case with structured steps',
+      'Feature type & API sub-type',
+      'Script templates from script_templates table',
+      'Readiness score = 100% gate (stricter)',
+    ],
+    outputs: [
+      '.robot file saved to backend/scripts/{type}/',
+      'Dry-run validation result (syntax check)',
+      'robot_scripts.status: Draft → Ready → Approved',
+      'Version tracking for script iterations',
+    ],
+    react: ['PERCEIVE: Read test case steps + feature context','REASON: Map steps to RF keywords (RequestsLibrary, SeleniumLibrary, etc.)','ACT: Generate .robot file with *** Settings ***, *** Test Cases ***, *** Keywords ***','REFLECT: Run dry-run via robot --dryrun; block approval if errors'],
+    connector: 'Approved .robot script → Test Execution',
+    isGate: true,
+  },
+  {
+    id: 'execution',
+    label: '4',
+    title: 'Test Execution',
+    sub: 'Robot Framework Runtime · Live stdout streaming via SSE',
+    badge: '▶ Execute',
+    color: '#15803d', glow: '#4ade80',
+    bg: '#031a0a', border: '#15803d',
+    titleColor: '#4ade80',
+    inColor: '#4ade80', outColor: '#86efac',
+    dotIn: '#16a34a', dotOut: '#86efac',
+    inputs: [
+      'Approved .robot scripts',
+      'Selected environment (SIT/UAT/PROD/DEV)',
+      'Test run trigger from UI',
+      'python/run_suite.py subprocess wrapper',
+    ],
+    outputs: [
+      'Live stdout stream → SSE channel rf-run:{id}',
+      'output.xml + report.html in rf-results/{runId}/',
+      'Parsed test_executions (status, duration, error_message)',
+      'Test run status: In Progress → Completed/Failed',
+    ],
+    react: ['PERCEIVE: Receive run trigger + environment config','REASON: Spawn python-shell with robot command','ACT: Stream stdout line-by-line to SSE; capture output.xml','REFLECT: Parse XML → upsert test_executions; auto-trigger EXECUTION_MONITOR'],
+    connector: 'output.xml + test_executions → Execution Monitor (auto)',
+  },
+  {
+    id: 'monitor',
+    label: '5',
+    title: 'Execution Monitoring',
+    sub: 'EXECUTION_MONITOR Agent · Auto-triggered health analysis',
+    badge: '📊 Monitor',
+    color: '#c2410c', glow: '#fb923c',
+    bg: '#1a0800', border: '#c2410c',
+    titleColor: '#fb923c',
+    inColor: '#fb923c', outColor: '#fdba74',
+    dotIn: '#f97316', dotOut: '#fdba74',
+    inputs: [
+      'Test run results from output.xml',
+      'Execution logs + timings from test_executions',
+      'Historical run data for trend analysis',
+      'Auto-triggered on test_runs.status = Completed',
+    ],
+    outputs: [
+      'Health score (0-100) for test run quality',
+      'Failure categorization (env, script, app, data)',
+      'Trend analysis: pass rate vs. previous runs',
+      'Recommendations for improvement',
+    ],
+    react: ['PERCEIVE: Parse output.xml, scan test_executions for failures','REASON: Categorize failures, compute health score','ACT: Store analysis in agent_suggestions','REFLECT: Surface insights to UI, flag critical regressions'],
+    connector: 'Failed executions → Defect Triage (manual trigger)',
+  },
+  {
+    id: 'defect',
+    label: '6',
+    title: 'Defect Triage',
+    sub: 'DEFECT_TRIAGE Agent · AI-powered defect pre-fill',
+    badge: '🐛 Defects',
+    color: '#991b1b', glow: '#fca5a5',
+    bg: '#1a0505', border: '#991b1b',
+    titleColor: '#fca5a5',
+    inColor: '#fca5a5', outColor: '#fecaca',
+    dotIn: '#ef4444', dotOut: '#fca5a5',
+    inputs: [
+      'Failed test execution details',
+      'Error logs & screenshots from RF output',
+      'Test case context + expected vs. actual',
+      'User trigger: "Triage with AI" button',
+    ],
+    outputs: [
+      'Defect draft with severity (Critical/High/Med/Low)',
+      'Priority assignment (P1/P2/P3)',
+      'Steps to reproduce (extracted from test case)',
+      'Duplicate detection + root cause hypothesis',
+    ],
+    react: ['PERCEIVE: Read execution error, logs, test case steps','REASON: Classify severity using error patterns + impact','ACT: Generate defect record draft','REFLECT: Stream to UI for human review; user accepts/modifies before save'],
+    connector: 'Approved defects → Defect Analysis Report',
+  },
+  {
+    id: 'report',
+    label: '7',
+    title: 'Reporting & Analytics',
+    sub: 'REPORT_NARRATIVE + GAP_ANALYST · Executive summaries + XLSX export',
+    badge: '📈 Reports',
+    color: '#b45309', glow: '#fbbf24',
+    bg: '#140c00', border: '#b45309',
+    titleColor: '#fbbf24',
+    inColor: '#fbbf24', outColor: '#fde68a',
+    dotIn: '#f59e0b', dotOut: '#fde68a',
+    inputs: [
+      'Coverage metrics (automation % by feature type)',
+      'Execution summary (pass/fail trends)',
+      'Defect analysis (severity breakdown)',
+      'Test plan data for gap analysis',
+    ],
+    outputs: [
+      'Coverage Report (XLSX): automation % per feature',
+      'Execution Summary (XLSX): 2-sheet run trends',
+      'Defect Analysis (XLSX): severity + feature breakdown',
+      'AI Narrative: markdown executive summary',
+    ],
+    react: ['PERCEIVE: Aggregate data from test_cases, executions, defects','REASON: Identify trends, gaps, risk areas','ACT: Generate XLSX reports via SheetJS; auto-fit columns','REFLECT: REPORT_NARRATIVE writes markdown summary for stakeholders'],
+    connector: null,
+  },
+];
+
+const canvas = document.getElementById('flow-canvas');
+const ctx = canvas.getContext('2d');
+
+const NODE_W = 210;
+const NODE_H = 58;
+const CONN_H = 48;
+const MARGIN_L = 64;
+const MARGIN_TOP = 32;
+
+let canvasWidth = 0;
+let nodes = [];
+let particles = [];
+let hoveredNode = null;
+let selectedNode = null;
+let animFrame = null;
+let lastTime = 0;
+
+function buildLayout() {
+  canvasWidth = Math.max(900, window.innerWidth - 4);
+  nodes = [];
+  let y = MARGIN_TOP;
+
+  for (let i = 0; i < STAGES.length; i++) {
+    const s = STAGES[i];
+    const x = MARGIN_L;
+    nodes.push({ id: s.id, x, y, w: NODE_W, h: NODE_H, stage: s, connY: y + NODE_H });
+    y += NODE_H;
+    if (s.connector) y += CONN_H;
+  }
+
+  const totalH = y + MARGIN_TOP + 20;
+  canvas.width  = canvasWidth;
+  canvas.height = totalH;
+  canvas.style.width  = canvasWidth + 'px';
+  canvas.style.height = totalH + 'px';
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function drawNode(node, isHovered, isSelected) {
+  const s = node.stage;
+  const { x, y, w, h } = node;
+  const r = 11;
+
+  if (isHovered || isSelected) {
+    ctx.save();
+    ctx.shadowColor = s.glow;
+    ctx.shadowBlur = isSelected ? 22 : 14;
+    roundRect(x, y, w, h, r);
+    ctx.fillStyle = s.bg;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  roundRect(x, y, w, h, r);
+  const grad = ctx.createLinearGradient(x, y, x, y + h);
+  grad.addColorStop(0, s.bg);
+  grad.addColorStop(1, hexToRgba(s.color, 0.09));
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.strokeStyle = isSelected ? s.glow : (isHovered ? s.glow : s.border);
+  ctx.lineWidth = isSelected ? 2.2 : (isHovered ? 1.8 : 1.3);
+  roundRect(x, y, w, h, r);
+  ctx.stroke();
+
+  ctx.fillStyle = s.color;
+  roundRect(x, y, 5, h, 3);
+  ctx.fill();
+
+  const bx = x + 14, by = y + h / 2 - 15;
+  roundRect(bx, by, 30, 30, 7);
+  ctx.fillStyle = s.color;
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = `800 ${s.label.length > 2 ? '9' : '11'}px 'Segoe UI', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(s.label, bx + 15, by + 15);
+
+  ctx.fillStyle = s.titleColor;
+  ctx.font = "700 12px 'Segoe UI', sans-serif";
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(s.title, x + 52, y + h / 2 - 8);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = "400 9px 'Segoe UI', sans-serif";
+  const subText = s.sub.split(' · ')[0];
+  ctx.fillText(subText, x + 52, y + h / 2 + 8);
+
+  const badgeText = s.badge;
+  ctx.font = "700 8.5px 'Segoe UI', sans-serif";
+  const bw = ctx.measureText(badgeText).width + 12;
+  const bry = y + h / 2 - 9, brx = x + w - bw - 8;
+  roundRect(brx, bry, bw, 18, 4);
+  ctx.fillStyle = hexToRgba(s.color, 0.18);
+  ctx.fill();
+  ctx.strokeStyle = s.border;
+  ctx.lineWidth = 0.8;
+  roundRect(brx, bry, bw, 18, 4);
+  ctx.stroke();
+  ctx.fillStyle = s.titleColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(badgeText, brx + bw / 2, bry + 9);
+}
+
+function drawConnector(node, s) {
+  if (!s.connector) return;
+  const cx = MARGIN_L + NODE_W / 2;
+  const y1 = node.y + NODE_H;
+  const y2 = y1 + CONN_H;
+
+  ctx.strokeStyle = '#1e3a5f';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(cx, y1);
+  ctx.lineTo(cx, y2 - 4);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#334155';
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, y2 - 8);
+  ctx.lineTo(cx + 5, y2 - 8);
+  ctx.lineTo(cx, y2 - 1);
+  ctx.closePath();
+  ctx.fill();
+
+  const label = s.connector;
+  ctx.font = "600 8.5px 'Segoe UI', sans-serif";
+  const lw = Math.min(ctx.measureText(label).width + 16, 340);
+  const lx = cx + 16, ly = y1 + CONN_H / 2 - 10;
+  roundRect(lx, ly, lw, 20, 5);
+  ctx.fillStyle = '#0d1117';
+  ctx.fill();
+  ctx.strokeStyle = s.isGate ? '#92400e' : '#1e293b';
+  ctx.lineWidth = 0.8;
+  roundRect(lx, ly, lw, 20, 5);
+  ctx.stroke();
+  ctx.fillStyle = s.isGate ? '#fcd34d' : '#475569';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  const maxLabelW = lw - 16;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(lx + 8, ly, maxLabelW, 20);
+  ctx.clip();
+  ctx.fillText(label, lx + 8, ly + 10);
+  ctx.restore();
+
+  if (s.isGate) {
+    const gx = lx, gy = ly + 24;
+    ctx.font = "700 8px 'Segoe UI', sans-serif";
+    ctx.fillStyle = '#4ade80';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✓ readiness=100% → Script gen enabled', gx, gy + 6);
+    ctx.fillStyle = '#f87171';
+    ctx.fillText('✗ readiness<100% → Script gen BLOCKED', gx, gy + 18);
+  }
+}
+
+function drawRightLane() {
+  const rx = MARGIN_L + NODE_W + 32;
+  const ry = MARGIN_TOP;
+
+  ctx.font = "700 9px 'Segoe UI', sans-serif";
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#334155';
+  ctx.fillText('AGENT STATUS FLOW', rx, ry);
+
+  const flows = [
+    { label: 'Thinking', color: '#64748b', desc: 'Claude reasoning stream' },
+    { label: 'Tool Call', color: '#3b82f6', desc: 'DB query, file parse' },
+    { label: 'Tool Result', color: '#10b981', desc: 'Data returned' },
+    { label: 'Output', color: '#f1f5f9', desc: 'Final suggestion' },
+  ];
+  let py = ry + 18;
+  flows.forEach(p => {
+    roundRect(rx, py, 70, 22, 5);
+    ctx.fillStyle = hexToRgba(p.color, 0.15);
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba(p.color, 0.45);
+    ctx.lineWidth = 0.8;
+    roundRect(rx, py, 70, 22, 5);
+    ctx.stroke();
+    ctx.font = "700 8px 'Segoe UI', sans-serif";
+    ctx.fillStyle = p.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.label, rx + 35, py + 11);
+
+    ctx.font = "400 8px 'Segoe UI', sans-serif";
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'left';
+    ctx.fillText(p.desc, rx + 76, py + 11);
+    py += 28;
+  });
+
+  py += 12;
+  ctx.font = "700 9px 'Segoe UI', sans-serif";
+  ctx.fillStyle = '#334155';
+  ctx.textBaseline = 'top';
+  ctx.fillText('FEATURE TYPES', rx, py);
+  py += 16;
+
+  const types = [
+    { label: 'API', color: '#3b82f6', desc: 'Technical/Functional/Both' },
+    { label: 'Functional', color: '#8b5cf6', desc: 'Business logic validation' },
+    { label: 'GUI', color: '#10b981', desc: 'UI/UX testing' },
+    { label: 'Performance', color: '#f59e0b', desc: 'Load & stress testing' },
+  ];
+  types.forEach(t => {
+    roundRect(rx, py, 66, 20, 4);
+    ctx.fillStyle = hexToRgba(t.color, 0.2);
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba(t.color, 0.5);
+    ctx.lineWidth = 0.8;
+    roundRect(rx, py, 66, 20, 4);
+    ctx.stroke();
+    ctx.font = "700 8px 'Segoe UI', sans-serif";
+    ctx.fillStyle = t.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.label, rx + 33, py + 10);
+    ctx.font = "400 8px 'Segoe UI', sans-serif";
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'left';
+    ctx.fillText(t.desc, rx + 72, py + 10);
+    py += 26;
+  });
+
+  py += 16;
+  ctx.font = "italic 9px 'Segoe UI', sans-serif";
+  ctx.fillStyle = '#334155';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Click stage cards for detailed I/O', rx, py);
+}
+
+function spawnParticle(fromNode, toNode) {
+  const cx = fromNode.x + NODE_W / 2;
+  particles.push({
+    x: cx, y: fromNode.y + NODE_H,
+    tx: cx, ty: toNode.y,
+    progress: 0,
+    speed: 0.008 + Math.random() * 0.006,
+    color: fromNode.stage.glow,
+    size: 3 + Math.random() * 2,
+  });
+}
+
+function initParticles() {
+  particles = [];
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const n = nodes[i];
+    if (n.stage.connector) {
+      setTimeout(() => spawnParticle(nodes[i], nodes[i + 1]), i * 300);
+    }
+  }
+}
+
+function updateParticles(dt) {
+  for (let p of particles) {
+    p.progress += p.speed * dt;
+    if (p.progress >= 1) {
+      p.progress = 0;
+    }
+  }
+}
+
+function drawParticles() {
+  for (let p of particles) {
+    const t = p.progress;
+    const x = p.x + (p.tx - p.x) * t;
+    const y = p.y + (p.ty - p.y) * t;
+    const alpha = t < 0.1 ? t * 10 : (t > 0.9 ? (1 - t) * 10 : 1);
+
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(x, y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function render(ts) {
+  const dt = Math.min((ts - lastTime) / 16, 3);
+  lastTime = ts;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#070c18';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = 'rgba(30,41,59,0.35)';
+  ctx.lineWidth = 0.5;
+  for (let gx = 0; gx < canvas.width; gx += 40) {
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, canvas.height); ctx.stroke();
+  }
+  for (let gy = 0; gy < canvas.height; gy += 40) {
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke();
+  }
+
+  for (let n of nodes) drawConnector(n, n.stage);
+
+  updateParticles(dt);
+  drawParticles();
+
+  for (let n of nodes) {
+    drawNode(n, n === hoveredNode, n.stage.id === selectedNode);
+  }
+
+  drawRightLane();
+
+  animFrame = requestAnimationFrame(render);
+}
+
+function getNodeAt(ex, ey) {
+  const rect = canvas.getBoundingClientRect();
+  const mx = ex - rect.left;
+  const my = ey - rect.top;
+  return nodes.find(n => mx >= n.x && mx <= n.x + n.w && my >= n.y && my <= n.y + n.h) || null;
+}
+
+const tooltip = document.getElementById('tooltip');
+
+canvas.addEventListener('mousemove', e => {
+  const n = getNodeAt(e.clientX, e.clientY);
+  hoveredNode = n;
+  if (n) {
+    canvas.style.cursor = 'pointer';
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+    tooltip.innerHTML = `<strong style="color:${n.stage.titleColor}">${n.stage.title}</strong><br>${n.stage.sub.split(' · ')[0]}<br><span style="color:#475569;font-size:9px;">Click to expand I/O details</span>`;
+  } else {
+    canvas.style.cursor = 'default';
+    tooltip.style.display = 'none';
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoveredNode = null;
+  tooltip.style.display = 'none';
+});
+
+canvas.addEventListener('click', e => {
+  const n = getNodeAt(e.clientX, e.clientY);
+  if (n) {
+    if (selectedNode === n.stage.id) {
+      selectedNode = null;
+      showDetail(null);
+    } else {
+      selectedNode = n.stage.id;
+      showDetail(n.stage);
+    }
+  }
+});
+
+function selectNode(id) {
+  selectedNode = id;
+  const s = STAGES.find(s => s.id === id);
+  if (s) showDetail(s);
+}
+
+function showDetail(s) {
+  const panel = document.getElementById('detail-panel');
+  if (!s) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  const reactPills = s.react.map(r => {
+    const [phase, ...rest] = r.split(': ');
+    const colors = { PERCEIVE: '#06b6d4', REASON: '#8b5cf6', ACT: '#10b981', REFLECT: '#f59e0b' };
+    const c = colors[phase] || '#94a3b8';
+    return `<span class="react-pill" style="background:${hexToRgba(c,0.12)};border-color:${hexToRgba(c,0.4)};color:${c};">${phase}: ${rest.join(': ')}</span>`;
+  }).join('');
+
+  const inputItems = s.inputs.map(i => `
+    <div class="dp-item">
+      <div class="dp-dot" style="background:${s.dotIn};"></div>
+      <span>${i}</span>
+    </div>`).join('');
+
+  const outputItems = s.outputs.map(o => `
+    <div class="dp-item">
+      <div class="dp-dot" style="background:${s.dotOut};"></div>
+      <span>${o}</span>
+    </div>`).join('');
+
+  panel.innerHTML = `
+    <div class="dp-header" style="background:${hexToRgba(s.color, 0.08)};">
+      <div class="dp-num" style="background:${s.color};">${s.label}</div>
+      <div>
+        <div class="dp-title" style="color:${s.titleColor};">${s.title}</div>
+        <div class="dp-sub">${s.sub}</div>
+      </div>
+      <span class="dp-badge" style="background:${hexToRgba(s.color, 0.18)};color:${s.titleColor};border:1px solid ${s.border};">${s.badge}</span>
+      <button class="dp-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="dp-body">
+      <div class="dp-col">
+        <div class="dp-col-lbl" style="color:${s.inColor};">▼ INPUTS</div>
+        ${inputItems}
+      </div>
+      <div class="dp-col">
+        <div class="dp-col-lbl" style="color:${s.outColor};">▲ OUTPUTS</div>
+        ${outputItems}
+      </div>
+    </div>
+    <div class="react-strip">${reactPills}</div>
+  `;
+  panel.style.display = 'block';
+
+  setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+}
+
+function closeDetail() {
+  selectedNode = null;
+  document.getElementById('detail-panel').style.display = 'none';
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function init() {
+  buildLayout();
+  if (animFrame) cancelAnimationFrame(animFrame);
+  requestAnimationFrame(ts => {
+    lastTime = ts;
+    render(ts);
+  });
+  setTimeout(initParticles, 400);
+}
+
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(animFrame);
+  particles = [];
+  init();
+});
+
+init();
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, ClipboardList, Layers,
   TestTube, Play, Bug, BarChart3, Settings, LogOut,
+  GitBranch, Cpu,
 } from 'lucide-react';
 
 const NAV = [
@@ -83,6 +84,13 @@ export default function Sidebar() {
       {/* Main nav */}
       <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-0.5">
         {NAV.map(item => <NavItem key={item.to} {...item} />)}
+
+        {/* Learn section */}
+        <div style={{ fontSize: 9, color: 'var(--t3)', padding: '14px 10px 4px', letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: '"DM Mono",monospace' }}>
+          Learn
+        </div>
+        <NavItem to="/process-flow" icon={GitBranch} label="Process Flow" />
+        <NavItem to="/memory-arch" icon={Cpu} label="How Memory Works" />
       </nav>
 
       {/* Bottom */}

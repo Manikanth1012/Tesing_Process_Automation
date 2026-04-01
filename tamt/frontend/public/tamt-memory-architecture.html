@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TAMT — AI Memory Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    .page-header {
+      background: linear-gradient(135deg, #1a0a2e 0%, #1e1b4b 50%, #1a1f2e 100%);
+      border-bottom: 1px solid #2d3748;
+      padding: 28px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .page-header h1 { font-size: 22px; font-weight: 700; color: #f1f5f9; letter-spacing: -.3px; }
+    .page-header p  { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+    .badge-row { display: flex; gap: 10px; margin-top: 8px; }
+    .hdr-badge {
+      padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    }
+
+    .canvas { padding: 36px 40px; display: flex; flex-direction: column; gap: 0; }
+
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #64748b; margin-bottom: 10px;
+    }
+
+    .divider {
+      border: none; border-top: 1px solid #1e293b; margin: 28px 0;
+    }
+
+    .layer-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+    .layer-card {
+      border-radius: 14px; padding: 22px; position: relative;
+    }
+    .layer-num {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; color: white; flex-shrink: 0;
+    }
+    .layer-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .layer-tag { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .layer-title { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+    .layer-detail { font-size: 11px; line-height: 1.8; color: #94a3b8; }
+    .layer-detail code { padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+    .meta-box { margin-top: 14px; border-radius: 7px; padding: 9px 12px; font-size: 10px; line-height: 1.6; }
+
+    .l1 { background: #0a1628; border: 2px solid #3b82f6; }
+    .l1 .layer-num  { background: #1d4ed8; }
+    .l1 .layer-tag  { color: #60a5fa; }
+    .l1 .layer-detail code { background: #1e3a5f; color: #93c5fd; }
+    .l1 .meta-box   { background: #1e3a5f; color: #7dd3fc; }
+
+    .l2 { background: #1a1200; border: 2px solid #f59e0b; }
+    .l2 .layer-num  { background: #b45309; }
+    .l2 .layer-tag  { color: #fbbf24; }
+    .l2 .layer-detail code { background: #2a1f00; color: #fcd34d; }
+    .l2 .meta-box   { background: #2a1f00; color: #fde68a; }
+
+    .l3 { background: #1a0a2e; border: 2px solid #7c3aed; }
+    .l3 .layer-tag  { color: #a78bfa; }
+    .l3 .layer-num  { background: #6d28d9; }
+
+    .store-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .store-card { border-radius: 8px; padding: 9px 10px; }
+    .store-title { font-size: 10px; font-weight: 700; margin-bottom: 3px; }
+    .store-desc  { font-size: 9px; line-height: 1.5; }
+    .store-db    { background: #0a1628; border: 1px solid #3b82f6; }
+    .store-db .store-title { color: #60a5fa; }
+    .store-db .store-desc  { color: #93c5fd; }
+    .store-agent  { background: #1a0a2e; border: 1px solid #7c3aed; }
+    .store-agent .store-title { color: #c4b5fd; }
+    .store-agent .store-desc  { color: #a78bfa; }
+
+    .l3-meta { margin-top: 10px; border-radius: 7px; padding: 9px 12px; font-size: 10px; background: #2e1065; color: #ddd6fe; line-height: 1.8; display: flex; flex-wrap: wrap; gap: 20px; }
+
+    .flow-box {
+      background: #0d1117; border: 1px solid #1e293b;
+      border-radius: 12px; padding: 18px 22px;
+    }
+    .flow-row {
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 0; row-gap: 10px;
+    }
+    .flow-step {
+      border-radius: 8px; padding: 8px 14px;
+      font-size: 11px; font-weight: 600; text-align: center;
+      line-height: 1.4;
+    }
+    .flow-arrow { color: #475569; padding: 0 8px; font-size: 18px; }
+    .fs-neutral { background: #1e293b; border: 1px solid #334155; color: #94a3b8; }
+    .fs-l1 { background: #0a1628; border: 1px solid #3b82f6; color: #60a5fa; }
+    .fs-l2 { background: #1a1200; border: 1px solid #f59e0b; color: #fbbf24; }
+    .fs-l3 { background: #1a0a2e; border: 1px solid #7c3aed; color: #c4b5fd; }
+    .fs-agent  { background: #1a1a1a; border: 1px solid #7c3aed; color: #d8b4fe; }
+
+    .triggers-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    }
+    .trigger-card {
+      background: #12101e; border: 1px solid #2d2250;
+      border-radius: 10px; padding: 14px;
+    }
+    .trigger-icon { font-size: 20px; margin-bottom: 6px; }
+    .trigger-name { font-size: 11px; font-weight: 700; color: #c4b5fd; margin-bottom: 4px; }
+    .trigger-desc { font-size: 10px; color: #7c6fcd; line-height: 1.5; }
+    .trigger-layer { font-size: 9px; margin-top: 6px; padding: 2px 7px; border-radius: 999px; display: inline-block; }
+    .tl1 { background: #1e3a5f; color: #93c5fd; }
+    .tl2 { background: #2a1f00; color: #fcd34d; }
+    .tl3 { background: #2e1065; color: #c4b5fd; }
+
+    .recall-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;
+    }
+    .recall-card {
+      background: #0d1117; border: 1px solid #1e293b; border-radius: 10px; padding: 16px;
+    }
+    .recall-title { font-size: 12px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+    .recall-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 11px; color: #94a3b8; margin-bottom: 6px; line-height: 1.5;
+    }
+    .recall-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+
+    .mem-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .mem-table th {
+      background: #1e1b4b; color: #a78bfa; font-weight: 700; font-size: 10px;
+      letter-spacing: .08em; text-transform: uppercase;
+      padding: 10px 14px; border-bottom: 1px solid #2d2250; text-align: left;
+    }
+    .mem-table td {
+      padding: 10px 14px; border-bottom: 1px solid #1e293b; color: #94a3b8; vertical-align: top;
+    }
+    .mem-table tr:last-child td { border-bottom: none; }
+    .mem-table td:first-child { color: #e2e8f0; font-weight: 600; }
+    .check { color: #4ade80; }
+    .cross { color: #f87171; }
+
+    .footer {
+      text-align: center; padding: 24px 40px; font-size: 11px;
+      color: #475569; border-top: 1px solid #1e293b;
+    }
+
+    /* ── FLOW ANIMATIONS ── */
+    @keyframes flowDot {
+      0%   { left: 0px;  opacity: 0; }
+      12%  {             opacity: 1; }
+      88%  {             opacity: 1; }
+      100% { left: 22px; opacity: 0; }
+    }
+    @keyframes stepReveal {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes layerPulse {
+      0%, 100% { box-shadow: none; }
+      50%       { box-shadow: 0 0 18px 3px var(--pulse-c, rgba(59,130,246,0.25)); }
+    }
+    @keyframes arrowPing {
+      0%   { transform: translateX(0); opacity: .6; }
+      100% { transform: translateX(6px); opacity: 0; }
+    }
+
+    /* Animated arrow between flow steps */
+    .arr {
+      display: flex; align-items: center; flex-shrink: 0;
+      padding: 0 6px; gap: 1px;
+    }
+    .arr-track {
+      position: relative; width: 26px; height: 2px;
+      background: linear-gradient(90deg, #1e293b, #334155);
+      border-radius: 2px; overflow: visible; flex-shrink: 0;
+    }
+    .arr-dot {
+      position: absolute; top: -3.5px; left: 0;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--dot-c, #22d3ee);
+      box-shadow: 0 0 7px var(--dot-c, #22d3ee);
+      animation: flowDot var(--dur, 1.8s) linear infinite;
+      animation-delay: var(--del, 0s);
+    }
+    .arr-tip {
+      width: 0; height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 7px solid #334155;
+      animation: arrowPing 1.8s ease-out infinite;
+      animation-delay: var(--del, 0s);
+    }
+
+    /* Step reveal stagger */
+    .flow-step { animation: stepReveal 0.45s ease forwards; opacity: 0; }
+    .flow-step:nth-child(1)  { animation-delay: .05s; }
+    .flow-step:nth-child(3)  { animation-delay: .15s; }
+    .flow-step:nth-child(5)  { animation-delay: .25s; }
+    .flow-step:nth-child(7)  { animation-delay: .35s; }
+    .flow-step:nth-child(9)  { animation-delay: .45s; }
+    .flow-step:nth-child(11) { animation-delay: .55s; }
+
+    /* Layer card pulse */
+    .l1 { --pulse-c: rgba(59,130,246,0.3); animation: layerPulse 4s ease-in-out infinite; }
+    .l2 { --pulse-c: rgba(245,158,11,0.3); animation: layerPulse 4s ease-in-out infinite; animation-delay: 1.3s; }
+    .l3 { --pulse-c: rgba(124,58,237,0.3); animation: layerPulse 4s ease-in-out infinite; animation-delay: 2.6s; }
+
+    /* Agent grid for process phase */
+    .agent-dispatch-grid {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+    .agent-chip {
+      padding: 6px 12px; border-radius: 7px; font-size: 10px; font-weight: 600;
+      background: #1a1040; border: 1px solid #4c1d95; color: #c4b5fd;
+      cursor: default; transition: background .15s, border-color .15s;
+      animation: stepReveal 0.4s ease forwards; opacity: 0;
+    }
+    .agent-chip:hover { background: #2e1065; border-color: #7c3aed; }
+    .agent-chip:nth-child(1) { animation-delay: .05s; }
+    .agent-chip:nth-child(2) { animation-delay: .12s; }
+    .agent-chip:nth-child(3) { animation-delay: .19s; }
+    .agent-chip:nth-child(4) { animation-delay: .26s; }
+    .agent-chip:nth-child(5) { animation-delay: .33s; }
+    .agent-chip:nth-child(6) { animation-delay: .40s; }
+    .agent-chip:nth-child(7) { animation-delay: .47s; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>TAMT — 3-Layer AI Memory Architecture</h1>
+    <p>How the AI Control Plane remembers context across turns, sessions, and restarts</p>
+    <div class="badge-row">
+      <span class="hdr-badge" style="background:#1e3a5f;color:#93c5fd;">Layer 1: Turn History</span>
+      <span class="hdr-badge" style="background:#2a1f00;color:#fcd34d;">Layer 2: Agent State</span>
+      <span class="hdr-badge" style="background:#2e1065;color:#c4b5fd;">Layer 3: Database Persistence</span>
+      <span class="hdr-badge" style="background:#0f2517;color:#4ade80;">7 AI Agents · Claude API</span>
+    </div>
+  </div>
+  <div style="text-align:right;font-size:11px;color:#475569;">
+    <div>agentService.js · tamt.db</div>
+    <div style="margin-top:4px;">v1.3 · March 2026</div>
+  </div>
+</div>
+
+<div class="canvas">
+
+  <div class="section-label">Memory Layers Overview</div>
+  <div class="layer-grid">
+
+    <div class="layer-card l1">
+      <div class="layer-header">
+        <div class="layer-num">1</div>
+        <div>
+          <div class="layer-tag">Layer 1</div>
+          <div class="layer-title">Turn History</div>
+        </div>
+      </div>
+      <div class="layer-detail">
+        <div>Frontend <code>history[]</code> array</div>
+        <div>Last 10 messages (user + assistant)</div>
+        <div>Sent with every request</div>
+        <div>React state only — no server storage</div>
+        <div>Clears on page refresh</div>
+        <div style="margin-top:8px;color:#60a5fa;">Use case:</div>
+        <div>Short-term conversational context<br/>("run that test again", "show me those results", "fix it")</div>
+        <div style="margin-top:8px;color:#60a5fa;">Component:</div>
+        <div><code>AIChatAssistant.jsx</code> useState</div>
+      </div>
+      <div class="meta-box">
+        <div><strong>Scope:</strong> Current browser session</div>
+        <div><strong>Persists across refresh:</strong> No</div>
+        <div><strong>Persists across restarts:</strong> No</div>
+        <div><strong>Cost:</strong> Tokens in every Claude API call</div>
+      </div>
+    </div>
+
+    <div class="layer-card l2">
+      <div class="layer-header">
+        <div class="layer-num">2</div>
+        <div>
+          <div class="layer-tag">Layer 2</div>
+          <div class="layer-title">Agent State</div>
+        </div>
+      </div>
+      <div class="layer-detail">
+        <div>In-memory agent run state</div>
+        <div>Stored during agent execution</div>
+        <div>Accessible within same request cycle</div>
+        <div style="margin-top:8px;color:#fbbf24;">Stored fields:</div>
+        <div><code>current_feature</code> — active feature context</div>
+        <div><code>current_project</code> — active project</div>
+        <div><code>pending_suggestions</code> — awaiting approval</div>
+        <div><code>execution_context</code> — test run state</div>
+        <div><code>tool_results</code> — accumulated data</div>
+        <div style="margin-top:8px;color:#fbbf24;">Module:</div>
+        <div><code>agentService.js</code> · runAgent() function</div>
+      </div>
+      <div class="meta-box">
+        <div><strong>Scope:</strong> Single agent execution</div>
+        <div><strong>Persists across refresh:</strong> No</div>
+        <div><strong>Persists across restarts:</strong> No</div>
+        <div><strong>Cost:</strong> Zero — no API overhead</div>
+      </div>
+    </div>
+
+    <div class="layer-card l3">
+      <div class="layer-header">
+        <div class="layer-num">3</div>
+        <div>
+          <div class="layer-tag">Layer 3</div>
+          <div class="layer-title">Database Persistence</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">
+        Permanent storage in SQLite (tamt.db) · Stores all project data, agent runs, suggestions, and audit trail
+      </div>
+
+      <div style="font-size:10px;font-weight:700;color:#a78bfa;margin-bottom:5px;">Core Storage Tables</div>
+      <div class="store-grid">
+        <div class="store-card store-db">
+          <div class="store-title">agent_runs</div>
+          <div class="store-desc">Complete audit log of all agent executions: agent_type, status, tokens_used, duration, error_message</div>
+        </div>
+        <div class="store-card store-db">
+          <div class="store-title">agent_suggestions</div>
+          <div class="store-desc">Structured suggestions from agents awaiting human approval: test cases, scripts, defect drafts, analysis reports</div>
+        </div>
+        <div class="store-card store-db">
+          <div class="store-title">test_cases</div>
+          <div class="store-desc">Generated test cases with structured steps (JSON), expected results, RF keyword hints, linked to features</div>
+        </div>
+        <div class="store-card store-db">
+          <div class="store-title">robot_scripts</div>
+          <div class="store-desc">.robot file metadata + versions, dry-run validation results, approval status, content stored in filesystem</div>
+        </div>
+      </div>
+
+      <div style="font-size:10px;font-weight:700;color:#7dd3fc;margin-top:10px;margin-bottom:5px;">Agent Context Tables</div>
+      <div class="store-grid">
+        <div class="store-card store-agent">
+          <div class="store-title">prerequisites</div>
+          <div class="store-desc">Readiness checklist items with completion status. Read by PREREQ_ANALYST for scoring.</div>
+        </div>
+        <div class="store-card store-agent">
+          <div class="store-title">reference_templates</div>
+          <div class="store-desc">API specs, Swagger contracts, Functional TC templates. Context for TESTCASE_GENERATOR.</div>
+        </div>
+        <div class="store-card store-agent">
+          <div class="store-title">test_executions</div>
+          <div class="store-desc">Parsed output.xml results. Read by EXECUTION_MONITOR for health scoring.</div>
+        </div>
+        <div class="store-card store-agent">
+          <div class="store-title">defects</div>
+          <div class="store-desc">Triaged defects with severity, priority, steps. Created by DEFECT_TRIAGE agent.</div>
+        </div>
+      </div>
+
+      <div class="l3-meta">
+        <span><strong>Scope:</strong> Persistent across restarts</span>
+        <span><strong>Persists across refresh:</strong> Yes (disk)</span>
+        <span><strong>Persists across restarts:</strong> Yes</span>
+        <span><strong>Cost:</strong> Zero — context fetched on demand</span>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="divider" />
+
+  <div class="section-label">Memory Read / Write Flow — Per Agent Request</div>
+  <div class="flow-box">
+
+    <div style="font-size:10px;font-weight:700;color:#4ade80;margin-bottom:8px;">READ PHASE (at start of every agent execution)</div>
+    <div class="flow-row" style="margin-bottom:16px;">
+      <div class="flow-step fs-neutral">Agent Trigger<br/><span style="font-size:9px;font-weight:400;">User clicks button or auto-trigger</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#22d3ee;--del:0s;"></span></div><span class="arr-tip" style="--del:0s;"></span></div>
+      <div class="flow-step fs-l1">READ L1<br/><span style="font-size:9px;font-weight:400;">Last 10 turns from frontend<br/>history[] array</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#22d3ee;--del:0.4s;"></span></div><span class="arr-tip" style="--del:0.4s;"></span></div>
+      <div class="flow-step fs-l3">READ L3<br/><span style="font-size:9px;font-weight:400;">Fetch context from DB<br/>feature, test cases, prereqs</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#22d3ee;--del:0.8s;"></span></div><span class="arr-tip" style="--del:0.8s;"></span></div>
+      <div class="flow-step fs-agent">Build Context<br/><span style="font-size:9px;font-weight:400;">Construct system prompt<br/>+ tools + user message</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#22d3ee;--del:1.2s;"></span></div><span class="arr-tip" style="--del:1.2s;"></span></div>
+      <div class="flow-step fs-agent">Claude API<br/><span style="font-size:9px;font-weight:400;">Agentic loop with tools<br/>Stream events via SSE</span></div>
+    </div>
+
+    <div style="font-size:10px;font-weight:700;color:#fbbf24;margin-bottom:8px;">PROCESS PHASE — 7 Specialist Agents (dispatched by trigger type)</div>
+    <div class="agent-dispatch-grid" style="margin-bottom:16px;">
+      <div class="agent-chip">🔍 PREREQ_ANALYST<span style="display:block;font-weight:400;color:#7c6fcd;font-size:9px;">Score readiness 0–100</span></div>
+      <div class="agent-chip">📝 TESTCASE_GENERATOR<span style="display:block;font-weight:400;color:#7c6fcd;font-size:9px;">Generate test cases</span></div>
+      <div class="agent-chip">🤖 SCRIPT_GENERATOR<span style="display:block;font-weight:400;color:#7c6fcd;font-size:9px;">Create .robot files</span></div>
+      <div class="agent-chip">📊 EXECUTION_MONITOR<span style="display:block;font-weight:400;color:#7c6fcd;font-size:9px;">Analyse run health</span></div>
+      <div class="agent-chip">🐛 DEFECT_TRIAGE<span style="display:block;font-weight:400;color:#7c6fcd;font-size:9px;">Classify defects</span></div>
+      <div class="agent-chip">🔬 GAP_ANALYST<span style="display:block;font-weight:400;color:#7c6fcd;font-size:9px;">Coverage analysis</span></div>
+      <div class="agent-chip">📄 REPORT_NARRATIVE<span style="display:block;font-weight:400;color:#7c6fcd;font-size:9px;">Generate summary</span></div>
+    </div>
+
+    <div style="font-size:10px;font-weight:700;color:#f87171;margin-bottom:8px;">WRITE PHASE (after agent completes)</div>
+    <div class="flow-row">
+      <div class="flow-step fs-agent">Agent Response<br/><span style="font-size:9px;font-weight:400;">thinking + tool_calls<br/>+ suggestions</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#f59e0b;--del:0s;"></span></div><span class="arr-tip" style="--del:0s;"></span></div>
+      <div class="flow-step fs-l2">WRITE L2<br/><span style="font-size:9px;font-weight:400;">Update agent_runs table<br/>status, duration, tokens</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#f59e0b;--del:0.35s;"></span></div><span class="arr-tip" style="--del:0.35s;"></span></div>
+      <div class="flow-step fs-l3">WRITE L3<br/><span style="font-size:9px;font-weight:400;">Insert agent_suggestions<br/>for human approval</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#f59e0b;--del:0.7s;"></span></div><span class="arr-tip" style="--del:0.7s;"></span></div>
+      <div class="flow-step fs-l1">UPDATE L1<br/><span style="font-size:9px;font-weight:400;">Add assistant message<br/>to frontend history[]</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#f59e0b;--del:1.05s;"></span></div><span class="arr-tip" style="--del:1.05s;"></span></div>
+      <div class="flow-step fs-neutral">SSE Stream<br/><span style="font-size:9px;font-weight:400;">Live UI updates<br/>done event</span></div>
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="section-label">Layer 3 Write Triggers — When Database Records Are Created</div>
+  <div class="triggers-grid">
+
+    <div class="trigger-card">
+      <div class="trigger-icon">🤖</div>
+      <div class="trigger-name">Agent Execution</div>
+      <div class="trigger-desc">Every agent run creates an agent_runs record with status, tokens_used, duration, and full input/output context.</div>
+      <span class="trigger-layer tl3">L3 persist</span>
+    </div>
+
+    <div class="trigger-card">
+      <div class="trigger-icon">📝</div>
+      <div class="trigger-name">Test Case Generation</div>
+      <div class="trigger-desc">TESTCASE_GENERATOR creates agent_suggestions records. When user accepts, inserts into test_cases table.</div>
+      <span class="trigger-layer tl2">L2 temp</span>
+      <span class="trigger-layer tl3">L3 persist</span>
+    </div>
+
+    <div class="trigger-card">
+      <div class="trigger-icon">📜</div>
+      <div class="trigger-name">Script Generation</div>
+      <div class="trigger-desc">SCRIPT_GENERATOR creates .robot file + robot_scripts metadata. Dry-run validation result stored immediately.</div>
+      <span class="trigger-layer tl3">L3 persist</span>
+    </div>
+
+    <div class="trigger-card">
+      <div class="trigger-icon">▶️</div>
+      <div class="trigger-name">Test Execution</div>
+      <div class="trigger-desc">output.xml parsed into test_executions table. Auto-triggers EXECUTION_MONITOR which creates agent_runs record.</div>
+      <span class="trigger-layer tl3">L3 persist</span>
+    </div>
+
+    <div class="trigger-card">
+      <div class="trigger-icon">🐛</div>
+      <div class="trigger-name">Defect Triage</div>
+      <div class="trigger-desc">DEFECT_TRIAGE creates defect draft in agent_suggestions. User approval inserts into defects table with full context.</div>
+      <span class="trigger-layer tl2">L2 temp</span>
+      <span class="trigger-layer tl3">L3 persist</span>
+    </div>
+
+    <div class="trigger-card">
+      <div class="trigger-icon">📊</div>
+      <div class="trigger-name">Health Monitoring</div>
+      <div class="trigger-desc">EXECUTION_MONITOR auto-fires after every test run. Stores health_score and categorized failures in agent_suggestions.</div>
+      <span class="trigger-layer tl3">L3 persist</span>
+    </div>
+
+    <div class="trigger-card">
+      <div class="trigger-icon">📈</div>
+      <div class="trigger-name">Gap Analysis</div>
+      <div class="trigger-desc">GAP_ANALYST evaluates test plan coverage. Results stored in agent_suggestions with Go/Conditional Go/No Go decision.</div>
+      <span class="trigger-layer tl3">L3 persist</span>
+    </div>
+
+    <div class="trigger-card">
+      <div class="trigger-icon">📄</div>
+      <div class="trigger-name">Report Narrative</div>
+      <div class="trigger-desc">REPORT_NARRATIVE generates executive markdown summary. Stored in agent_suggestions for stakeholder export.</div>
+      <span class="trigger-layer tl3">L3 persist</span>
+    </div>
+
+  </div>
+
+  <hr class="divider" />
+
+  <div class="section-label">Memory Recall Scenarios — How Context Surfaces Automatically</div>
+  <div class="recall-grid">
+
+    <div class="recall-card" style="border-color:#3b82f6;">
+      <div class="recall-title" style="color:#60a5fa;">L1 — Conversational Context</div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#3b82f6;"></div>
+        <div>User says: <em>"Generate test cases for that feature"</em></div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#3b82f6;"></div>
+        <div>L1 history[] has previous messages discussing "Login API feature"</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#3b82f6;"></div>
+        <div>Agent resolves "that feature" to Login API without asking user to repeat</div>
+      </div>
+    </div>
+
+    <div class="recall-card" style="border-color:#f59e0b;">
+      <div class="recall-title" style="color:#fbbf24;">L2 — Agent State Carry-Over</div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#f59e0b;"></div>
+        <div>PREREQ_ANALYST runs and calculates readiness = 85%</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#f59e0b;"></div>
+        <div>Updates features.readiness_score in database</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#f59e0b;"></div>
+        <div>Next agent (TESTCASE_GENERATOR) reads same field to enforce ≥70% gate</div>
+      </div>
+    </div>
+
+    <div class="recall-card" style="border-color:#7c3aed;">
+      <div class="recall-title" style="color:#a78bfa;">L3 — Historical Agent Runs</div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#7c3aed;"></div>
+        <div>User asks: <em>"Show me all my previous test generations"</em></div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#7c3aed;"></div>
+        <div>Query agent_runs table WHERE agent_type='TESTCASE_GENERATOR'</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#7c3aed;"></div>
+        <div>Returns full history: timestamps, tokens used, success/failure status</div>
+      </div>
+    </div>
+
+    <div class="recall-card" style="border-color:#0ea5e9;">
+      <div class="recall-title" style="color:#38bdf8;">L3 — Suggestion Retrieval</div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#0ea5e9;"></div>
+        <div>SCRIPT_GENERATOR creates 3 .robot scripts for a feature</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#0ea5e9;"></div>
+        <div>Each stored in agent_suggestions with status='Pending'</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#0ea5e9;"></div>
+        <div>UI queries agent_suggestions to display for Accept/Reject/Modify</div>
+      </div>
+    </div>
+
+    <div class="recall-card" style="border-color:#10b981;">
+      <div class="recall-title" style="color:#34d399;">L3 — Execution Context</div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#10b981;"></div>
+        <div>User clicks "Triage with AI" on failed test execution</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#10b981;"></div>
+        <div>DEFECT_TRIAGE reads test_executions.error_message + test_cases.steps</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#10b981;"></div>
+        <div>Full context injected into Claude prompt for accurate severity classification</div>
+      </div>
+    </div>
+
+    <div class="recall-card" style="border-color:#6d28d9;">
+      <div class="recall-title" style="color:#c4b5fd;">L3 — Cross-Feature Learning</div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#6d28d9;"></div>
+        <div>User generates scripts for similar API features across projects</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#6d28d9;"></div>
+        <div>SCRIPT_GENERATOR queries robot_scripts for patterns from other features</div>
+      </div>
+      <div class="recall-item">
+        <div class="recall-dot" style="background:#6d28d9;"></div>
+        <div>Reuses proven keyword structure, improving consistency across test suite</div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="divider" />
+
+  <div class="section-label">Layer Comparison</div>
+  <div style="border:1px solid #1e293b;border-radius:12px;overflow:hidden;">
+    <table class="mem-table">
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th style="color:#60a5fa;">Layer 1 — Turn History</th>
+          <th style="color:#fcd34d;">Layer 2 — Agent State</th>
+          <th style="color:#c4b5fd;">Layer 3 — Database</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Storage</td>
+          <td>React useState array</td>
+          <td>In-memory variables (request scope)</td>
+          <td>SQLite database on disk</td>
+        </tr>
+        <tr>
+          <td>Scope</td>
+          <td>Current page session</td>
+          <td>Single agent execution</td>
+          <td>Permanent (until deleted)</td>
+        </tr>
+        <tr>
+          <td>Survives page refresh</td>
+          <td><span class="cross">✗</span> No</td>
+          <td><span class="cross">✗</span> No</td>
+          <td><span class="check">✓</span> Yes</td>
+        </tr>
+        <tr>
+          <td>Survives server restart</td>
+          <td><span class="cross">✗</span> No</td>
+          <td><span class="cross">✗</span> No</td>
+          <td><span class="check">✓</span> Yes</td>
+        </tr>
+        <tr>
+          <td>Search method</td>
+          <td>N/A (sent verbatim)</td>
+          <td>Variable lookup</td>
+          <td>SQL queries with indexes</td>
+        </tr>
+        <tr>
+          <td>Claude API cost</td>
+          <td>Tokens per request (last 10 turns)</td>
+          <td>Zero</td>
+          <td>Zero (fetched on demand)</td>
+        </tr>
+        <tr>
+          <td>File / module</td>
+          <td>AIChatAssistant.jsx</td>
+          <td>agentService.js (runAgent scope)</td>
+          <td>backend/tamt.db + services/*.js</td>
+        </tr>
+        <tr>
+          <td>Key use cases</td>
+          <td>Pronoun resolution, follow-up questions, context window</td>
+          <td>Tool results accumulation, temp suggestions, execution state</td>
+          <td>Audit trail, suggestions persistence, cross-agent context sharing</td>
+        </tr>
+        <tr>
+          <td>Write frequency</td>
+          <td>Every turn (user + assistant)</td>
+          <td>During agent execution (tool calls)</td>
+          <td>After agent completes + user approval</td>
+        </tr>
+        <tr>
+          <td>Read frequency</td>
+          <td>Every request (sent in messages)</td>
+          <td>Within same agent execution</td>
+          <td>At agent start (context fetch)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="section-label">Human-in-the-Loop Approval Flow</div>
+  <div class="flow-box">
+    <div style="margin-bottom:14px;font-size:11px;color:#94a3b8;">
+      All agent suggestions require explicit human approval — no agent auto-writes to production tables
+    </div>
+    <div class="flow-row">
+      <div class="flow-step" style="background:#1a0a2e;border:1px solid #7c3aed;color:#c4b5fd;">Agent Generates<br/><span style="font-size:9px;font-weight:400;">Test cases, scripts, defects</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#4ade80;--del:0s;"></span></div><span class="arr-tip" style="--del:0s;"></span></div>
+      <div class="flow-step" style="background:#2a1500;border:1px solid #f59e0b;color:#fbbf24;">Write to L3<br/><span style="font-size:9px;font-weight:400;">agent_suggestions table<br/>status='Pending'</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#4ade80;--del:0.3s;"></span></div><span class="arr-tip" style="--del:0.3s;"></span></div>
+      <div class="flow-step" style="background:#1e3a5f;border:1px solid #3b82f6;color:#60a5fa;">UI Displays<br/><span style="font-size:9px;font-weight:400;">AgentActivityPanel<br/>Accept / Reject / Modify</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#4ade80;--del:0.6s;"></span></div><span class="arr-tip" style="--del:0.6s;"></span></div>
+      <div class="flow-step" style="background:#0f2517;border:1px solid #4ade80;color:#4ade80;">User Action<br/><span style="font-size:9px;font-weight:400;">Clicks Accept button</span></div>
+      <div class="arr"><div class="arr-track"><span class="arr-dot" style="--dot-c:#4ade80;--del:0.9s;"></span></div><span class="arr-tip" style="--del:0.9s;"></span></div>
+      <div class="flow-step" style="background:#1e3a5f;border:1px solid #3b82f6;color:#60a5fa;">Write to Production<br/><span style="font-size:9px;font-weight:400;">test_cases, robot_scripts,<br/>defects tables</span></div>
+    </div>
+    <div style="margin-top:14px;font-size:10px;color:#64748b;">
+      <div style="display:flex;gap:6px;margin-bottom:3px;"><span style="color:#4ade80;">✓</span> <strong>Accept:</strong> Move from agent_suggestions to production table, update status='Accepted'</div>
+      <div style="display:flex;gap:6px;margin-bottom:3px;"><span style="color:#f87171;">✗</span> <strong>Reject:</strong> Update agent_suggestions.status='Rejected', no production write</div>
+      <div style="display:flex;gap:6px;"><span style="color:#fbbf24;">✎</span> <strong>Modify:</strong> User edits suggestion in UI, then Accept modified version</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  TAMT — Test Automation Management Tool · 3-Layer AI Memory Architecture · agentService.js · tamt.db · March 2026 (v1.3)
+</div>
+
+</body>
+</html>
