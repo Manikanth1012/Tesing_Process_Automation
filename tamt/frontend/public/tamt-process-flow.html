@@ -641,9 +641,9 @@ const STAGES = [
 const canvas = document.getElementById('flow-canvas');
 const ctx = canvas.getContext('2d');
 
-const NODE_W = 210;
-const NODE_H = 58;
-const CONN_H = 48;
+const NODE_W = 290;
+const NODE_H = 64;
+const CONN_H = 52;
 const MARGIN_L = 64;
 const MARGIN_TOP = 32;
 
@@ -730,23 +730,12 @@ function drawNode(node, isHovered, isSelected) {
   ctx.textBaseline = 'middle';
   ctx.fillText(s.label, bx + 15, by + 15);
 
-  ctx.fillStyle = s.titleColor;
-  ctx.font = "700 12px 'Segoe UI', sans-serif";
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(s.title, x + 52, y + h / 2 - 8);
-
-  ctx.fillStyle = '#64748b';
-  ctx.font = "400 9px 'Segoe UI', sans-serif";
-  const subText = s.sub.split(' · ')[0];
-  ctx.fillText(subText, x + 52, y + h / 2 + 8);
-
   const badgeText = s.badge;
   ctx.font = "700 8.5px 'Segoe UI', sans-serif";
-  const bw = ctx.measureText(badgeText).width + 12;
-  const bry = y + h / 2 - 9, brx = x + w - bw - 8;
+  const bw = ctx.measureText(badgeText).width + 14;
+  const bry = y + 8, brx = x + w - bw - 8;
   roundRect(brx, bry, bw, 18, 4);
-  ctx.fillStyle = hexToRgba(s.color, 0.18);
+  ctx.fillStyle = hexToRgba(s.color, 0.22);
   ctx.fill();
   ctx.strokeStyle = s.border;
   ctx.lineWidth = 0.8;
@@ -756,6 +745,26 @@ function drawNode(node, isHovered, isSelected) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(badgeText, brx + bw / 2, bry + 9);
+
+  // Title — clipped to not overlap badge
+  const titleMaxW = brx - (x + 52) - 6;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x + 52, y, titleMaxW, h);
+  ctx.clip();
+  ctx.fillStyle = s.titleColor;
+  ctx.font = "700 12px 'Segoe UI', sans-serif";
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(s.title, x + 52, y + h / 2 - 8);
+  ctx.restore();
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = "400 9px 'Segoe UI', sans-serif";
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const subText = s.sub.split(' · ')[0];
+  ctx.fillText(subText, x + 52, y + h / 2 + 8);
 }
 
 function drawConnector(node, s) {
