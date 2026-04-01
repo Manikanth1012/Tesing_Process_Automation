@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FolderKanban, ClipboardList, Layers,
   TestTube, Play, Bug, BarChart3, Settings, LogOut,
-  GitBranch, Cpu, Library,
+  GitBranch, Cpu,
 } from 'lucide-react';
 
 const NAV = [
@@ -15,7 +15,6 @@ const NAV = [
   { to: '/test-runs', icon: Play, label: 'Test Runs' },
   { to: '/defects', icon: Bug, label: 'Defects' },
   { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/global-templates', icon: Library, label: 'Global Templates' },
 ];
 
 function NavItem({ to, icon: Icon, label, exact }) {

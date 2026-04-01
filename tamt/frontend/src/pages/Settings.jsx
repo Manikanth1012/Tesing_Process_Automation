@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Trash2, Upload, FileText, Plus, UserPlus, Edit2, X, ShieldCheck, KeyRound, Cpu, ChevronDown } from 'lucide-react';
+import { Trash2, Upload, FileText, Plus, UserPlus, Edit2, X, ShieldCheck, KeyRound, Cpu, ChevronDown, Eye, Download, Check } from 'lucide-react';
 import { environmentsAPI, agentsAPI, refTemplatesAPI, usersAPI, authAPI, skillsAPI, assistantContextAPI, configAPI, permissionsAPI } from '../services/api.js';
 import Modal from '../components/common/Modal.jsx';
 
@@ -54,6 +54,10 @@ export default function Settings() {
   const [templateForm, setTemplateForm] = useState({ name: '', template_type: 'FUNCTIONAL_TC', description: '', content: '' });
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadMode, setUploadMode] = useState('file');
+  const [viewTemplate, setViewTemplate] = useState(null); // { id, name, content }
+  const [editTmplId, setEditTmplId] = useState(null);
+  const [editTmplName, setEditTmplName] = useState('');
+  const [editTmplDesc, setEditTmplDesc] = useState('');
 
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
@@ -246,6 +250,31 @@ export default function Settings() {
     loadGlobalTemplates();
   };
 
+  const handleViewTemplate = async (tmpl) => {
+    try {
+      const r = await refTemplatesAPI.getContent(tmpl.id);
+      setViewTemplate({ id: tmpl.id, name: tmpl.name, content: r.data.content, fileName: r.data.fileName });
+    } catch {
+      setViewTemplate({ id: tmpl.id, name: tmpl.name, content: null });
+    }
+  };
+
+  const startEditTemplate = (tmpl) => {
+    setEditTmplId(tmpl.id);
+    setEditTmplName(tmpl.name);
+    setEditTmplDesc(tmpl.description || '');
+  };
+
+  const saveEditTemplate = async (id) => {
+    try {
+      await refTemplatesAPI.update(id, { name: editTmplName, description: editTmplDesc });
+      setEditTmplId(null);
+      loadGlobalTemplates();
+    } catch (err) {
+      alert(err.response?.data?.error || err.message);
+    }
+  };
+
   const grouped = TEMPLATE_TYPES.reduce((acc, t) => {
     acc[t] = globalTemplates.filter(tmpl => tmpl.template_type === t);
     return acc;
@@ -342,36 +371,125 @@ export default function Settings() {
       {tab === 'Global Templates' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p style={{ color: 'var(--t3)', fontSize: 13 }}>Global templates are available as AI agent context across all features.</p>
-            <button onClick={() => setShowAddTemplate(true)} className="btn-primary text-sm"><Plus className="w-4 h-4" /> Add Template</button>
+            <p style={{ color: 'var(--t3)', fontSize: 13 }}>
+              Global templates are available as AI agent context across all features.
+            </p>
+            <button onClick={() => setShowAddTemplate(true)} className="btn-primary text-sm">
+              <Plus className="w-4 h-4" /> Add Template
+            </button>
           </div>
+
           {TEMPLATE_TYPES.map(type => (
-            <div key={type} className="card">
-              <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--border)', background: 'var(--bg3)', borderRadius: '12px 12px 0 0' }}>
-                <h3 style={{ fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--cyan)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <div key={type} className="card" style={{ overflow: 'hidden' }}>
+              {/* Section header */}
+              <div style={{
+                padding: '10px 18px', background: 'var(--bg3)',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <h3 style={{ fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--cyan)', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
                   {TEMPLATE_TYPE_LABELS[type]}
                 </h3>
+                <span style={{ fontSize: 11, color: 'var(--t3)' }}>{grouped[type].length} template{grouped[type].length !== 1 ? 's' : ''}</span>
               </div>
+
               {grouped[type].length === 0 ? (
-                <div style={{ padding: '24px 18px', color: 'var(--t3)', textAlign: 'center', fontSize: 13 }}>No global templates of this type.</div>
-              ) : grouped[type].map(tmpl => (
-                <div key={tmpl.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 18px', borderBottom: '1px solid var(--border)' }}>
-                  <FileText className="w-4 h-4 flex-shrink-0 mr-3" style={{ color: 'var(--t3)' }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color: 'var(--t1)', fontWeight: 500, fontSize: 13 }}>{tmpl.name}</div>
-                    {tmpl.description && <div style={{ color: 'var(--t3)', fontSize: 11 }}>{tmpl.description}</div>}
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, marginLeft: 12, alignItems: 'center' }}>
-                    <a href={`/api/v1/ref-templates/${tmpl.id}/download`} target="_blank" rel="noreferrer"
-                      style={{ fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--cyan)', textDecoration: 'none' }}>
-                      Download
-                    </a>
-                    <button onClick={() => handleDeleteTemplate(tmpl.id)} style={{ color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                <div style={{ padding: '20px 18px', color: 'var(--t3)', textAlign: 'center', fontSize: 13 }}>
+                  No global templates of this type yet.
                 </div>
-              ))}
+              ) : grouped[type].map((tmpl, i) => {
+                const isEditing = editTmplId === tmpl.id;
+                return (
+                  <div key={tmpl.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 18px',
+                    borderBottom: i < grouped[type].length - 1 ? '1px solid var(--border)' : 'none',
+                  }}>
+                    <FileText className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--t3)' }} />
+
+                    {/* Name + description — editable inline */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <input
+                            className="input"
+                            value={editTmplName}
+                            onChange={e => setEditTmplName(e.target.value)}
+                            style={{ padding: '4px 8px', fontSize: 13 }}
+                          />
+                          <input
+                            className="input"
+                            value={editTmplDesc}
+                            onChange={e => setEditTmplDesc(e.target.value)}
+                            placeholder="Description (optional)"
+                            style={{ padding: '4px 8px', fontSize: 11 }}
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ color: 'var(--t1)', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {tmpl.name}
+                          </div>
+                          {tmpl.description && (
+                            <div style={{ color: 'var(--t3)', fontSize: 11, marginTop: 1 }}>{tmpl.description}</div>
+                          )}
+                          <div style={{ fontFamily: '"DM Mono",monospace', fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>
+                            {tmpl.file_name}
+                            {tmpl.uploaded_by_name && ` · uploaded by ${tmpl.uploaded_by_name}`}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={() => saveEditTemplate(tmpl.id)}
+                            title="Save changes"
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: 'var(--cyan-dim)', color: 'var(--cyan)', border: '1px solid var(--border-hi)' }}>
+                            <Check className="w-3 h-3" /> Save
+                          </button>
+                          <button
+                            onClick={() => setEditTmplId(null)}
+                            title="Cancel"
+                            style={{ padding: '4px 8px', borderRadius: 6, fontSize: 11, cursor: 'pointer', background: 'none', color: 'var(--t3)', border: '1px solid var(--border)' }}>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleViewTemplate(tmpl)} title="View content"
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--cyan)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => startEditTemplate(tmpl)} title="Edit"
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--amber)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <a href={`/api/v1/ref-templates/${tmpl.id}/download`} download title="Download"
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: 'var(--t3)', display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--green)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                          <button onClick={() => handleDeleteTemplate(tmpl.id)} title="Delete"
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 7px', cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--red)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--t3)'}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -787,6 +905,33 @@ export default function Settings() {
             <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── View Template Content Modal ── */}
+      <Modal open={!!viewTemplate} onClose={() => setViewTemplate(null)} title={viewTemplate?.name || 'Template Content'}>
+        {viewTemplate && (
+          <div>
+            {viewTemplate.content ? (
+              <pre style={{
+                fontFamily: '"DM Mono",monospace', fontSize: 11, color: 'var(--t2)',
+                background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
+                padding: 14, overflow: 'auto', maxHeight: 400, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              }}>
+                {viewTemplate.content}
+              </pre>
+            ) : (
+              <p style={{ color: 'var(--t3)', fontSize: 13 }}>
+                This file type cannot be previewed inline. Use the Download button to open it.
+              </p>
+            )}
+            <div className="flex justify-end gap-3" style={{ marginTop: 16 }}>
+              <a href={`/api/v1/ref-templates/${viewTemplate.id}/download`} download className="btn-secondary text-sm">
+                <Download className="w-4 h-4" /> Download
+              </a>
+              <button onClick={() => setViewTemplate(null)} className="btn-primary">Close</button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── Add Global Template Modal ── */}

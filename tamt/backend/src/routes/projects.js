@@ -187,7 +187,7 @@ router.get('/:id', (req, res) => {
     LEFT JOIN test_plan_features tpf ON tpf.test_plan_id = tp.id
     LEFT JOIN features f ON f.id = tpf.feature_id
     LEFT JOIN test_cases tc ON tc.feature_id = f.id
-    LEFT JOIN defects d ON d.test_plan_id = tp.id
+    LEFT JOIN defects d ON d.feature_id = f.id
     WHERE tp.project_id = ?
   `).get(req.params.id);
 
