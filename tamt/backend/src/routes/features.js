@@ -42,6 +42,102 @@ router.get('/', (req, res) => {
   res.json(db.prepare(sql).all(...params));
 });
 
+// GET /features/import/template — download blank Excel import template
+// NOTE: Must be BEFORE /:id to avoid Express matching "import" as an ID
+router.get('/import/template', (req, res) => {
+  const headers = [
+    { header: 'name*', key: 'name', note: 'Required. Feature name.' },
+    { header: 'description', key: 'description', note: 'Optional description.' },
+    { header: 'feature_type*', key: 'feature_type', note: 'API | Functional | GUI | Performance' },
+    { header: 'api_sub_type', key: 'api_sub_type', note: 'Technical | Functional | Both (only for API type)' },
+    { header: 'priority*', key: 'priority', note: 'P1 | P2 | P3' },
+    { header: 'test_plan_id', key: 'test_plan_id', note: 'Optional. Numeric ID of the test plan to link to.' },
+  ];
+
+  const exampleRow = {
+    'name*': 'User Login API',
+    'description': 'Authenticate user and return JWT token',
+    'feature_type*': 'API',
+    'api_sub_type': 'Technical',
+    'priority*': 'P1',
+    'test_plan_id': '',
+  };
+  const instructionsRow = {};
+  headers.forEach(h => { instructionsRow[h.header] = h.note; });
+
+  const ws = XLSX.utils.json_to_sheet([instructionsRow, exampleRow], { header: headers.map(h => h.header) });
+  ws['!cols'] = headers.map(() => ({ wch: 28 }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Features');
+
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Disposition', 'attachment; filename="feature_import_template.xlsx"');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+});
+
+// POST /features/import — bulk import features from Excel
+// NOTE: Must be BEFORE /:id to avoid Express matching "import" as an ID
+const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+router.post('/import', importUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  let rows;
+  try {
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    rows = XLSX.utils.sheet_to_json(ws);
+  } catch (e) {
+    return res.status(400).json({ error: 'Could not parse Excel file: ' + e.message });
+  }
+
+  const VALID_TYPES = ['API', 'Functional', 'GUI', 'Performance'];
+  const VALID_PRIO = ['P1', 'P2', 'P3'];
+  const VALID_SUB = ['Technical', 'Functional', 'Both'];
+
+  const created = [];
+  const errors = [];
+
+  const insertFeature = db.prepare(`
+    INSERT INTO features (name, description, feature_type, api_sub_type, priority, status, created_by)
+    VALUES (?, ?, ?, ?, ?, 'Active', ?)
+  `);
+  const linkPlan = db.prepare('INSERT OR IGNORE INTO test_plan_features (test_plan_id, feature_id) VALUES (?, ?)');
+
+  const importAll = db.transaction(() => {
+    rows.forEach((row, i) => {
+      const rowNum = i + 2;
+      const name = (row['name*'] || row['name'] || '').toString().trim();
+      const description = (row['description'] || '').toString().trim();
+      const feature_type = (row['feature_type*'] || row['feature_type'] || '').toString().trim();
+      const api_sub_type = (row['api_sub_type'] || 'Both').toString().trim();
+      const priority = (row['priority*'] || row['priority'] || 'P2').toString().trim();
+      const test_plan_id = row['test_plan_id'] ? parseInt(row['test_plan_id']) : null;
+
+      if (!name) { errors.push({ row: rowNum, error: 'name is required' }); return; }
+      if (!VALID_TYPES.includes(feature_type)) { errors.push({ row: rowNum, error: `feature_type must be one of: ${VALID_TYPES.join(', ')}` }); return; }
+      if (!VALID_PRIO.includes(priority)) { errors.push({ row: rowNum, error: `priority must be one of: ${VALID_PRIO.join(', ')}` }); return; }
+
+      try {
+        const result = insertFeature.run(name, description, feature_type, VALID_SUB.includes(api_sub_type) ? api_sub_type : 'Both', priority, req.user.id);
+        const fid = result.lastInsertRowid;
+        if (test_plan_id) linkPlan.run(test_plan_id, fid);
+        created.push({ id: fid, name, feature_type, priority });
+      } catch (e) {
+        errors.push({ row: rowNum, error: e.message });
+      }
+    });
+  });
+
+  try {
+    importAll();
+    res.json({ created: created.length, errors, features: created });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /features/:id
 router.get('/:id', (req, res) => {
   const feature = db.prepare('SELECT * FROM features WHERE id = ?').get(req.params.id);
@@ -128,102 +224,6 @@ router.post('/:id/recalculate-readiness', (req, res) => {
   const readiness = stats.total > 0 ? Math.round((stats.ready / stats.total) * 100) : 0;
   db.prepare('UPDATE features SET prereq_readiness = ? WHERE id = ?').run(readiness, req.params.id);
   res.json({ prereq_readiness: readiness });
-});
-
-// GET /features/import/template — download blank Excel import template
-router.get('/import/template', (req, res) => {
-  const headers = [
-    { header: 'name*', key: 'name', note: 'Required. Feature name.' },
-    { header: 'description', key: 'description', note: 'Optional description.' },
-    { header: 'feature_type*', key: 'feature_type', note: 'API | Functional | GUI | Performance' },
-    { header: 'api_sub_type', key: 'api_sub_type', note: 'Technical | Functional | Both (only for API type)' },
-    { header: 'priority*', key: 'priority', note: 'P1 | P2 | P3' },
-    { header: 'test_plan_id', key: 'test_plan_id', note: 'Optional. Numeric ID of the test plan to link to.' },
-  ];
-
-  const exampleRow = {
-    'name*': 'User Login API',
-    'description': 'Authenticate user and return JWT token',
-    'feature_type*': 'API',
-    'api_sub_type': 'Technical',
-    'priority*': 'P1',
-    'test_plan_id': '',
-  };
-  const instructionsRow = {};
-  headers.forEach(h => { instructionsRow[h.header] = h.note; });
-
-  const ws = XLSX.utils.json_to_sheet([instructionsRow, exampleRow], { header: headers.map(h => h.header) });
-  // Style: widen columns
-  ws['!cols'] = headers.map(() => ({ wch: 28 }));
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Features');
-
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  res.setHeader('Content-Disposition', 'attachment; filename="feature_import_template.xlsx"');
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.send(buf);
-});
-
-// POST /features/import — bulk import features from Excel
-const importUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
-router.post('/import', importUpload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-
-  let rows;
-  try {
-    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    rows = XLSX.utils.sheet_to_json(ws);
-  } catch (e) {
-    return res.status(400).json({ error: 'Could not parse Excel file: ' + e.message });
-  }
-
-  const VALID_TYPES = ['API', 'Functional', 'GUI', 'Performance'];
-  const VALID_PRIO = ['P1', 'P2', 'P3'];
-  const VALID_SUB = ['Technical', 'Functional', 'Both'];
-
-  const created = [];
-  const errors = [];
-
-  const insertFeature = db.prepare(`
-    INSERT INTO features (name, description, feature_type, api_sub_type, priority, status, created_by)
-    VALUES (?, ?, ?, ?, ?, 'Active', ?)
-  `);
-  const linkPlan = db.prepare('INSERT OR IGNORE INTO test_plan_features (test_plan_id, feature_id) VALUES (?, ?)');
-
-  const importAll = db.transaction(() => {
-    rows.forEach((row, i) => {
-      const rowNum = i + 2; // account for header
-      // Support both header styles (with or without asterisk)
-      const name = (row['name*'] || row['name'] || '').toString().trim();
-      const description = (row['description'] || '').toString().trim();
-      const feature_type = (row['feature_type*'] || row['feature_type'] || '').toString().trim();
-      const api_sub_type = (row['api_sub_type'] || 'Both').toString().trim();
-      const priority = (row['priority*'] || row['priority'] || 'P2').toString().trim();
-      const test_plan_id = row['test_plan_id'] ? parseInt(row['test_plan_id']) : null;
-
-      if (!name) { errors.push({ row: rowNum, error: 'name is required' }); return; }
-      if (!VALID_TYPES.includes(feature_type)) { errors.push({ row: rowNum, error: `feature_type must be one of: ${VALID_TYPES.join(', ')}` }); return; }
-      if (!VALID_PRIO.includes(priority)) { errors.push({ row: rowNum, error: `priority must be one of: ${VALID_PRIO.join(', ')}` }); return; }
-
-      try {
-        const result = insertFeature.run(name, description, feature_type, VALID_SUB.includes(api_sub_type) ? api_sub_type : 'Both', priority, req.user.id);
-        const fid = result.lastInsertRowid;
-        if (test_plan_id) linkPlan.run(test_plan_id, fid);
-        created.push({ id: fid, name, feature_type, priority });
-      } catch (e) {
-        errors.push({ row: rowNum, error: e.message });
-      }
-    });
-  });
-
-  try {
-    importAll();
-    res.json({ created: created.length, errors, features: created });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
 });
 
 module.exports = router;

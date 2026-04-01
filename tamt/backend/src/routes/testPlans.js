@@ -88,7 +88,7 @@ router.post('/:id/features', (req, res) => {
     res.status(201).json({ added: true });
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'Feature already in plan' });
-    throw e;
+    return res.status(500).json({ error: e.message });
   }
 });
 

@@ -18,6 +18,7 @@ import Reports from './pages/Reports.jsx';
 import Settings from './pages/Settings.jsx';
 import ProcessFlow from './pages/ProcessFlow.jsx';
 import MemoryArchitecture from './pages/MemoryArchitecture.jsx';
+import GlobalTemplates from './pages/GlobalTemplates.jsx';
 
 // Auth guard — redirects to /login if no token stored
 function RequireAuth({ children }) {
@@ -55,6 +56,7 @@ export default function App() {
                 <Route path="/defects" element={<Defects />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/global-templates" element={<GlobalTemplates />} />
                 <Route path="/process-flow" element={<ProcessFlow />} />
                 <Route path="/memory-arch" element={<MemoryArchitecture />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
