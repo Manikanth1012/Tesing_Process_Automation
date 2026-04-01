@@ -1,0 +1,19 @@
+{
+  "name": "tamt",
+  "version": "1.0.0",
+  "description": "Test Automation Management Tool",
+  "private": true,
+  "workspaces": [
+    "tamt/frontend",
+    "tamt/backend"
+  ],
+  "scripts": {
+    "install:frontend": "cd tamt/frontend && npm install",
+    "install:backend": "cd tamt/backend && npm install",
+    "build:frontend": "cd tamt/frontend && npm run build",
+    "build": "npm run install:frontend && npm run install:backend && npm run build:frontend",
+    "start": "cd tamt/backend && npm start",
+    "dev:frontend": "cd tamt/frontend && npm run dev",
+    "dev:backend": "cd tamt/backend && npm run dev"
+  }
+}
