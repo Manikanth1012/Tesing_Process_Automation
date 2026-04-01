@@ -17,9 +17,10 @@ A full-stack internal QA platform that manages the complete test automation life
 9. [Robot Framework Integration](#robot-framework-integration)
 10. [User & Role Management](#user--role-management)
 11. [AI Assistant](#ai-assistant)
-12. [API Reference](#api-reference)
-13. [Database Schema](#database-schema)
-14. [Contributing & Release Notes](#contributing--release-notes)
+12. [**Process Flow & Memory Architecture Documentation**](#process-flow--memory-architecture-documentation)
+13. [API Reference](#api-reference)
+14. [Database Schema](#database-schema)
+15. [Contributing & Release Notes](#contributing--release-notes)
 
 ---
 
@@ -392,6 +393,95 @@ The assistant **declines** to answer questions outside this scope and redirects 
 
 ---
 
+## Process Flow & Memory Architecture Documentation
+
+### Interactive Visual Documentation
+
+TAMT includes comprehensive interactive HTML documentation pages that visualize the testing process flow and AI memory architecture. These pages are designed for stakeholders, new team members, and training purposes.
+
+#### 1. Process Flow Visualization (`tamt-process-flow.html`)
+
+An interactive canvas showing the complete testing automation pipeline from test case input to successful execution.
+
+**Features:**
+- **7 Interactive Stage Cards**: Click any stage to see detailed input/output information
+  - Prerequisites Analysis (PREREQ_ANALYST)
+  - Test Case Generation (TESTCASE_GENERATOR)
+  - Script Generation (SCRIPT_GENERATOR)
+  - Test Execution (Robot Framework)
+  - Execution Monitoring (EXECUTION_MONITOR)
+  - Defect Triage (DEFECT_TRIAGE)
+  - Reporting & Analytics (REPORT_NARRATIVE + GAP_ANALYST)
+
+- **Visual Flow Elements**:
+  - Animated particles showing data flow between stages
+  - Color-coded stages with glow effects on hover
+  - Gate checks and readiness requirements clearly marked
+  - Real-time SSE streaming indicators
+
+- **Comprehensive Documentation Sections**:
+  - **7 AI Agents Panel**: Detailed input/output for each agent with REACT loop (Perceive → Reason → Act → Reflect)
+  - **Project Hierarchy**: Visual tree showing Project → Test Plan → Feature → Test Case → RF Script → Test Run
+  - **Data Stores**: SQLite database tables, file system structure, and Claude API integration
+  - **Stage-to-Stage Flow Table**: How data passes between each stage with specific table references
+
+**Opening the documentation:**
+```bash
+# From project root
+open tamt-process-flow.html
+# or
+python -m http.server 8000
+# then navigate to http://localhost:8000/tamt-process-flow.html
+```
+
+#### 2. Memory Architecture Visualization (`tamt-memory-architecture.html`)
+
+An interactive page explaining the 3-layer memory system that powers the AI agents' contextual awareness.
+
+**Features:**
+- **3-Layer Memory System**:
+  - **Layer 1 — Turn History**: Frontend React state with last 10 messages for conversational context
+  - **Layer 2 — Agent State**: In-memory execution state during agent runs
+  - **Layer 3 — Database Persistence**: Permanent SQLite storage with full audit trail
+
+- **Memory Flow Diagrams**:
+  - **Read Phase**: How context is gathered at request start
+  - **Process Phase**: All 7 agents and their memory access patterns
+  - **Write Phase**: How results are persisted to database
+
+- **Key Documentation Sections**:
+  - **Write Triggers**: 8 scenarios that create database records (agent execution, test case generation, defect triage, etc.)
+  - **Recall Scenarios**: 6 examples of automatic context retrieval
+  - **Layer Comparison Table**: Detailed comparison across scope, persistence, cost, and use cases
+  - **Human-in-the-Loop Flow**: Shows the Accept/Reject/Modify workflow for agent suggestions
+
+**Opening the documentation:**
+```bash
+# From project root
+open tamt-memory-architecture.html
+# or
+python -m http.server 8000
+# then navigate to http://localhost:8000/tamt-memory-architecture.html
+```
+
+#### Usage for Training & Onboarding
+
+These documentation pages are ideal for:
+- **New Team Member Onboarding**: Visual walkthrough of the entire system
+- **Stakeholder Presentations**: Executive-friendly visualization without technical jargon
+- **Architecture Reviews**: Complete system overview with data flow diagrams
+- **QA Training**: Understanding how AI agents assist in test automation
+- **Documentation Repository**: Self-contained HTML files that can be hosted anywhere
+
+Both pages are fully self-contained with no external dependencies and feature:
+- Dark theme with professional color coding
+- Interactive hover tooltips
+- Smooth animations and transitions
+- Responsive design for all screen sizes
+- Click-to-expand detail panels
+
+---
+
 ## API Reference
 
 All endpoints are prefixed `/api/v1/`.
@@ -468,6 +558,26 @@ npm run dev
 4. Open a pull request targeting `main`
 
 ---
+
+### v1.4.0 — 2026-04-01
+
+**Interactive Visual Documentation**
+- New `tamt-process-flow.html` — interactive canvas visualization of complete testing pipeline
+  - 7 clickable stage cards with detailed I/O information
+  - Animated data flow particles between stages
+  - Comprehensive sections: 7 AI Agents, Project Hierarchy, Data Stores, Stage-to-Stage Flow
+  - REACT loop explanation (Perceive → Reason → Act → Reflect)
+  - Color-coded stages with professional dark theme
+- New `tamt-memory-architecture.html` — 3-layer AI memory system documentation
+  - Layer 1: Turn History (browser state)
+  - Layer 2: Agent State (in-memory execution)
+  - Layer 3: Database Persistence (SQLite)
+  - Memory flow diagrams (Read → Process → Write phases)
+  - Write triggers and recall scenarios with examples
+  - Human-in-the-Loop approval flow visualization
+- Both pages are self-contained HTML files with no external dependencies
+- Designed for stakeholder presentations, team onboarding, and training
+- Added comprehensive documentation section in README with usage instructions
 
 ### v1.3.0 — 2026-03-27
 
