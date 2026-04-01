@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FolderKanban, Plus, Users, ClipboardList, Layers, ChevronRight } from 'lucide-react';
 import { projectsAPI } from '../services/api.js';
 import Modal from '../components/common/Modal.jsx';
+import { PipelineMiniStrip } from '../components/common/PipelineStatus.jsx';
 
 const STATUS_COLORS = {
   Active:    'badge-cyan',
@@ -17,11 +18,21 @@ export default function Projects() {
   const [form, setForm] = useState({ name: '', key: '', description: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [pipelineStatuses, setPipelineStatuses] = useState({});
 
   const load = () => {
     setLoading(true);
     projectsAPI.list()
-      .then(r => { setProjects(r.data); setLoading(false); })
+      .then(r => {
+        setProjects(r.data);
+        setLoading(false);
+        // Load pipeline status for each project
+        r.data.forEach(p => {
+          projectsAPI.pipelineStatus(p.id)
+            .then(ps => setPipelineStatuses(prev => ({ ...prev, [p.id]: ps.data.stages })))
+            .catch(() => {});
+        });
+      })
       .catch(err => { console.error('[Projects]', err.message); setLoading(false); });
   };
   useEffect(load, []);
@@ -107,6 +118,7 @@ export default function Projects() {
               <Stat icon={Layers} value={p.feature_count || 0} label="Features" />
               <Stat icon={Users} value={p.member_count || 0} label="Members" />
             </div>
+            <PipelineMiniStrip stages={pipelineStatuses[p.id]} />
           </Link>
         ))}
       </div>

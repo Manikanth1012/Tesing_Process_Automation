@@ -23,6 +23,130 @@ router.get('/', (req, res) => {
   res.json(projects);
 });
 
+// GET /projects/:id/pipeline-status
+router.get('/:id/pipeline-status', (req, res) => {
+  const pid = req.params.id;
+
+  const feat = db.prepare(`
+    SELECT COUNT(DISTINCT f.id) as total,
+      SUM(CASE WHEN f.prereq_readiness >= 70 THEN 1 ELSE 0 END) as ready,
+      SUM(CASE WHEN f.prereq_readiness > 0  THEN 1 ELSE 0 END) as analyzed
+    FROM features f
+    JOIN test_plan_features tpf ON tpf.feature_id = f.id
+    JOIN test_plans tp ON tp.id = tpf.test_plan_id
+    WHERE tp.project_id = ?
+  `).get(pid);
+
+  const tc = db.prepare(`
+    SELECT COUNT(DISTINCT tc.id) as count
+    FROM test_cases tc
+    JOIN features f ON f.id = tc.feature_id
+    JOIN test_plan_features tpf ON tpf.feature_id = f.id
+    JOIN test_plans tp ON tp.id = tpf.test_plan_id
+    WHERE tp.project_id = ?
+  `).get(pid);
+
+  const scr = db.prepare(`
+    SELECT COUNT(*) as total,
+      SUM(CASE WHEN rs.status = 'Approved' THEN 1 ELSE 0 END) as approved
+    FROM robot_scripts rs
+    JOIN test_cases tc ON tc.id = rs.test_case_id
+    JOIN features f ON f.id = tc.feature_id
+    JOIN test_plan_features tpf ON tpf.feature_id = f.id
+    JOIN test_plans tp ON tp.id = tpf.test_plan_id
+    WHERE tp.project_id = ?
+  `).get(pid);
+
+  const runs = db.prepare(`
+    SELECT COUNT(*) as total,
+      SUM(CASE WHEN tr.status = 'Completed'   THEN 1 ELSE 0 END) as completed,
+      SUM(CASE WHEN tr.status = 'In Progress' THEN 1 ELSE 0 END) as in_progress
+    FROM test_runs tr
+    JOIN test_plans tp ON tp.id = tr.test_plan_id
+    WHERE tp.project_id = ?
+  `).get(pid);
+
+  const mon = db.prepare(`
+    SELECT COUNT(*) as count
+    FROM agent_runs ar
+    JOIN test_runs tr ON ar.trigger_entity_id = tr.id
+    JOIN test_plans tp ON tp.id = tr.test_plan_id
+    WHERE tp.project_id = ?
+      AND ar.trigger_entity_type = 'test_run'
+      AND ar.agent_type = 'EXECUTION_MONITOR'
+      AND ar.status = 'Completed'
+  `).get(pid);
+
+  const def = db.prepare(`
+    SELECT COUNT(DISTINCT d.id) as count
+    FROM defects d
+    WHERE d.feature_id IN (
+      SELECT DISTINCT f.id FROM features f
+      JOIN test_plan_features tpf ON tpf.feature_id = f.id
+      JOIN test_plans tp ON tp.id = tpf.test_plan_id
+      WHERE tp.project_id = ?
+    )
+  `).get(pid);
+
+  const rep = db.prepare(`
+    SELECT COUNT(*) as count
+    FROM agent_runs ar
+    WHERE ar.trigger_entity_type = 'test_plan'
+      AND ar.trigger_entity_id IN (SELECT id FROM test_plans WHERE project_id = ?)
+      AND ar.agent_type IN ('REPORT_NARRATIVE', 'GAP_ANALYST')
+      AND ar.status = 'Completed'
+  `).get(pid);
+
+  const st = (done, partial, pending) => done ? 'done' : partial ? 'partial' : 'pending';
+
+  const stages = [
+    {
+      id: 'prereq', label: 'Prerequisite Analysis', icon: '⚡',
+      status: st(feat.ready > 0 && feat.ready >= feat.total, feat.analyzed > 0, true),
+      count: feat.ready, total: feat.total,
+      detail: feat.total > 0 ? `${feat.ready}/${feat.total} features at ≥70% readiness` : 'No features yet',
+    },
+    {
+      id: 'testcase', label: 'Test Case Generation', icon: '📝',
+      status: tc.count > 0 ? 'done' : 'pending',
+      count: tc.count, total: null,
+      detail: `${tc.count} test case${tc.count !== 1 ? 's' : ''} generated`,
+    },
+    {
+      id: 'script', label: 'Script Generation', icon: '🤖',
+      status: st(scr.approved > 0, scr.total > 0, true),
+      count: scr.approved, total: scr.total,
+      detail: scr.total > 0 ? `${scr.approved}/${scr.total} scripts approved` : 'No scripts yet',
+    },
+    {
+      id: 'execution', label: 'Test Execution', icon: '▶',
+      status: st(runs.completed > 0, runs.in_progress > 0 || runs.total > 0, true),
+      count: runs.completed, total: runs.total,
+      detail: runs.total > 0 ? `${runs.completed}/${runs.total} runs completed` : 'No runs yet',
+    },
+    {
+      id: 'monitor', label: 'Execution Monitoring', icon: '📊',
+      status: mon.count > 0 ? 'done' : 'pending',
+      count: mon.count, total: null,
+      detail: `${mon.count} monitoring analyses run`,
+    },
+    {
+      id: 'defect', label: 'Defect Triage', icon: '🐛',
+      status: def.count > 0 ? 'done' : 'pending',
+      count: def.count, total: null,
+      detail: `${def.count} defect${def.count !== 1 ? 's' : ''} triaged`,
+    },
+    {
+      id: 'report', label: 'Reporting', icon: '📈',
+      status: rep.count > 0 ? 'done' : 'pending',
+      count: rep.count, total: null,
+      detail: `${rep.count} report${rep.count !== 1 ? 's' : ''} generated`,
+    },
+  ];
+
+  res.json({ stages });
+});
+
 // GET /projects/:id
 router.get('/:id', (req, res) => {
   const project = db.prepare(`

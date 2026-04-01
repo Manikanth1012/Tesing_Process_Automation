@@ -147,6 +147,7 @@ export const projectsAPI = {
   delete: (id) => api.delete(`/projects/${id}`),
   addMember: (id, data) => api.post(`/projects/${id}/members`, data),
   removeMember: (id, userId) => api.delete(`/projects/${id}/members/${userId}`),
+  pipelineStatus: (id) => api.get(`/projects/${id}/pipeline-status`),
 };
 
 // ─── Users ─────────────────────────────────────────────────────────────────────

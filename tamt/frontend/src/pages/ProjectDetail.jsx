@@ -7,6 +7,7 @@ import {
 import { projectsAPI, usersAPI } from '../services/api.js';
 import Modal from '../components/common/Modal.jsx';
 import StatusBadge from '../components/common/StatusBadge.jsx';
+import { PipelineTracker } from '../components/common/PipelineStatus.jsx';
 
 const ROLES = ['Admin', 'Lead', 'Tester', 'Viewer'];
 
@@ -16,6 +17,7 @@ export default function ProjectDetail() {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('plans');
+  const [pipelineStages, setPipelineStages] = useState([]);
   const [showAddMember, setShowAddMember] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
   const [memberForm, setMemberForm] = useState({ user_id: '', role: 'Tester' });
@@ -31,6 +33,9 @@ export default function ProjectDetail() {
         setLoading(false);
       })
       .catch(err => { console.error('[ProjectDetail]', err.message); setLoading(false); });
+    projectsAPI.pipelineStatus(id)
+      .then(r => setPipelineStages(r.data.stages))
+      .catch(() => {});
   };
   useEffect(load, [id]);
 
@@ -119,6 +124,9 @@ export default function ProjectDetail() {
           <StatPill label="Team Members" value={members.length} color="var(--amber)" />
         </div>
       </div>
+
+      {/* Pipeline Tracker */}
+      <PipelineTracker stages={pipelineStages} />
 
       {/* Tabs */}
       <div style={{ borderBottom: '1px solid var(--border)', display: 'flex', gap: 0 }}>
